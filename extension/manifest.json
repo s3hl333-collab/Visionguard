@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Vision Guard",
+  "version": "0.1.0",
+  "description": "Experimental local video pre-analysis and optional YouTube visual cover.",
+  "permissions": ["storage", "activeTab"],
+  "content_security_policy": {"extension_pages":"script-src 'self'; object-src 'none'; connect-src 'none'; base-uri 'none'"},
+  "action": {"default_popup": "popup.html"},
+  "content_scripts": [{"matches": ["https://www.youtube.com/*"], "js": ["youtube.js"], "run_at": "document_start"}]
+}
