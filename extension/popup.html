@@ -1,1 +1,21 @@
-<!doctype html><html lang="en"><meta charset="utf-8"><link rel="stylesheet" href="style.css"><title>Vision Guard</title><body class="popup"><h1>VISION GUARD</h1><p>Watch freely. Stay aware.</p><label><input id="enabled" type="checkbox">Protection enabled</label><label><input id="conservative" type="checkbox">Cover all YouTube video visuals</label><label>Local playback mode<select id="mode"><option value="overlay">Opaque cover (recommended)</option><option value="blur">Blur + dim (experimental)</option></select></label><p id="status">Checking current tab…</p><a href="local.html" target="_blank">Analyze a local video</a><small>Assistive prototype, not a medically validated seizure-prevention device. Blur may leave flashes visible. Unanalyzed content is not known to be safe.</small><script type="module" src="popup.js"></script></body></html>
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="style.css"><title>Vision Guard</title></head>
+<body class="popup">
+  <h1>VISION GUARD <small>0.2.0 · experimental</small></h1>
+  <p>Scan first. Cover detected intervals during replay.</p>
+  <label><input id="enabled" type="checkbox">Protection enabled</label>
+  <label><input id="autoAnalyze" type="checkbox">Automatically pre-scan YouTube videos</label>
+  <label><input id="conservative" type="checkbox">Keep all YouTube visuals covered</label>
+  <label>Replay protection mode<select id="mode"><option value="overlay">Opaque cover (recommended)</option><option value="blur">Blur + dim (experimental)</option></select></label>
+  <p id="status" role="status">Checking current tab…</p>
+  <progress id="progress" max="1" value="0" aria-label="Scan progress"></progress>
+  <p id="coverage">No analyzed coverage.</p>
+  <button id="scan">Scan YouTube video from beginning</button>
+  <button id="stop">Stop scan; keep picture covered</button>
+  <details><summary>Detected timeline</summary><pre id="timeline">No analysis results.</pre></details>
+  <a href="local.html" target="_blank" rel="noopener">Analyze a local video</a>
+  <small>YouTube pre-scan uses a covered, muted first pass, taking approximately the video duration. Keep its tab visible. Ads, access restrictions or missed frames may limit coverage. Replay keeps unknown gaps opaque. No seizure-prevention guarantee; blur can preserve flashes.</small>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>

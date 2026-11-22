@@ -1,0 +1,12 @@
+/* Default covered until the isolated content script has loaded settings and coverage. */
+video:not([data-vg-visual="visible"]):not([data-vg-visual="blur"]) {
+  filter: brightness(0) !important;
+  background: #000 !important;
+  transition: none !important;
+  animation: none !important;
+}
+video[data-vg-visual="blur"] {
+  filter: blur(40px) brightness(.15) !important;
+  transition: none !important;
+  animation: none !important;
+}

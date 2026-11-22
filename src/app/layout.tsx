@@ -18,24 +18,22 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Vision Guard — A safer way to experience video",
+  title: "Vision Guard — Experimental video pre-scan",
   description:
-    "Vision Guard identifies potentially hazardous flashing sequences in YouTube videos and applies protective visual filtering at detected timestamps without interrupting playback.",
+    "Experimental covered pre-scan for accessible YouTube videos, followed by timestamp-based visual covering during replay. Initial scanning wait required; not medically validated.",
   keywords: [
     "photosensitive epilepsy",
-    "seizure protection",
+    "experimental video analysis",
     "video filtering",
     "strobe detection",
     "accessibility extension",
-    "YouTube safety",
-    "WCAG 2.2",
-    "ITU-R BT.1702",
+    "YouTube pre-scan",
   ],
   authors: [{ name: "Vision Guard Labs" }],
   openGraph: {
     title: "Vision Guard — Watch freely. Stay aware.",
     description:
-      "Protective visual filtering for photosensitive viewers on YouTube. Keep playback smooth while obscuring hazardous strobe sequences.",
+      "Scan accessible videos in a covered first pass, then replay with detected intervals obscured. Experimental assistive tool; no seizure-prevention guarantee.",
     type: "website",
   },
 };

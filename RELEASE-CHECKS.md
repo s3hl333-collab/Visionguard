@@ -1,27 +1,19 @@
-# Vision Guard 0.1.0 developer preview
+# Vision Guard 0.2.0 verification
 
-Release scope: experimental developer-mode installation. Not a Chrome Web Store release, clinically validated device, WCAG-certified detector, or assurance that content is safe.
+This is an experimental developer preview, not a medically validated safety release.
 
-## Verified on this checkout
+## New YouTube workflow
 
-- Production Next.js build passes.
-- ESLint passes with zero warnings and zero errors.
-- Five detector tests pass (known transitions, steady content, seek lookup, invalid input, interval boundaries).
-- Chrome landing-page download succeeds; SHA-256 matches public/downloads/vision-guard-extension.zip.
-- Desktop and 390px mobile automated axe WCAG A/AA checks report zero violations in tested states.
-- No landing-page browser script errors in those tests.
-- Actual unpacked extension loads in Chromium. A headlessly generated 6-second WebM containing a controlled 1–3 second strobe is analyzed before playback. Observed padded interval: 0.43–4.17 seconds.
-- Browser assertions pass for cover activation, continued playback, seek restoration, playback speed, fullscreen, and covered failure on an invalid video. No extension-page script errors observed.
-- Production dependency npm audit reported zero known vulnerabilities in the preceding hardening audit.
+Real YouTube frame access was verified on a short public video using standard Canvas reads. The actual unpacked extension performed a covered pre-scan, reached the end, rewound and began replay. Results apply to the tested video/session, not every video or browser.
 
-## Limits
+The automated YouTube test additionally runs an encoded 8-second controlled fixture in headless Chromium. It checks real detected intervals spanning the fixture's flashing portion, picture covering during scanning and replay, continued replay, restoration after seeking outside intervals, original audio-state restoration, ad invalidation and a CORS-tainted video remaining covered on failure. No hazardous footage appears in the landing page or artifacts.
 
-This does not constitute exhaustive accessibility, security or clinical validation. Manual screen-reader checks and real-world YouTube compatibility remain unverified. The controlled fixture tests video progression, not audible output. Detection is sampled and heuristic; frame timing and interval boundaries are approximate and padded. YouTube advance analysis remains unavailable, and continuous cover is optional. Local captions and additional file codecs require further testing. Do not market this preview as seizure prevention.
+Missed frames produce padded opaque gaps. Coverage is continuity of observed timeline, not exhaustive content or clinical safety. Buffering, background tabs, ads, DRM, access challenges and YouTube changes can interrupt analysis. The user must keep the tab visible. Full-video scanning incurs an initial wait approximately equal to the video duration.
 
-## Installation
+## Existing regression checks
 
-Download from the landing page, extract the ZIP, enable Developer Mode at chrome://extensions and select Load unpacked. Choose the folder containing manifest.json. Reload existing YouTube tabs. The main landing-page CTA downloads /downloads/vision-guard-extension.zip directly.
+Run the production build, lint, five detector tests, local-file extension browser test and desktop/mobile landing-page accessibility/download audit. The landing-page test compares the downloaded ZIP hash to the package in public/downloads. These are automated checks, not exhaustive screen-reader, cross-browser, security or clinical validation. Audio-state assertions verify mute/speed restoration, not audible fidelity.
 
-## Rebuild and test
+## Reproduction
 
-Run npm run lint, npm run build, and node --test extension/detector.test.mjs. Run package-extension.ps1 after changing extension files. Browser release checks require Playwright Chromium and @axe-core/playwright; audit scripts are in release-tests.
+See README.md for commands. Use package-extension.ps1 after extension changes. The generated detector-content.js and packaged ZIP are committed deliverables; detector.mjs is the detector source of truth.

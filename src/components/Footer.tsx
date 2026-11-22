@@ -18,7 +18,7 @@ export function Footer() {
             </div>
 
             <p className="text-[#a3a3a3] text-xs leading-relaxed max-w-sm">
-              Watch freely. Stay aware. Experimental local-video analysis and optional continuous YouTube cover. Not medically validated.
+              Watch freely. Stay aware. Experimental covered YouTube pre-scan and timestamp-based replay. Initial scanning wait required. Not medically validated.
             </p>
 
             <div className="flex items-center gap-2 pt-1 font-mono text-[11px] text-[#525252]">

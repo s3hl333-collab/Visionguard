@@ -14,7 +14,7 @@ export function HowItWorks() {
       description:
         "Vision Guard examines accessible video frames for potentially hazardous flashing patterns.",
       details:
-        "A hidden video element seeks through a local file at 60 samples per second. Canvas pixels are analyzed locally before playback. Scanning may be slow and can miss brief events.",
+        "YouTube is first played with its picture covered and audio muted while browser frame callbacks feed Canvas analysis. After this initial wait it rewinds for protected replay. Local files use sampled seeking. Both approaches are experimental and can miss events.",
       badge: "Local Canvas sampling",
       specs: [
         { label: "Sample Resolution", val: "Downscaled 96×54; detail can be lost" },

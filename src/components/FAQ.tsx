@@ -11,11 +11,11 @@ interface FAQItem {
 const FAQS: FAQItem[] = [
   {
     question: "Does Vision Guard pause or stop my YouTube videos?",
-    answer: "YouTube advance analysis is unavailable. The optional continuous cover hides all video visuals without intentionally pausing playback. Local analyzed files use timestamp-based covering.",
+    answer: "Before viewing, an initial pass plays with visuals covered and audio muted while the extension analyzes accessible frames. It then rewinds and restores your audio and speed settings for replay. During replay, timestamp-based covering does not intentionally pause playback. Expect an initial wait approximately equal to the video duration. Scans interrupted by ads or inaccessible frames may need restarting.",
   },
   {
     question: "How does Vision Guard detect dangerous flashing sequences?",
-    answer: "A hidden video and Canvas sample local files at 60 samples per second. Experimental luminance, red-intensity and edge heuristics identify potential intervals. There is no WebAssembly or WebGPU pipeline and no certified standards compliance.",
+    answer: "For YouTube, browser video-frame callbacks and Canvas analyze the existing player during a covered pass. Local files use sampled seeking. Experimental luminance, red-intensity and edge heuristics identify potential intervals. There is no certified standards compliance; brief events can be missed. Access restrictions are never bypassed.",
   },
   {
     question: "Does Vision Guard upload my viewing history or video frames to any server?",
@@ -23,7 +23,7 @@ const FAQS: FAQItem[] = [
   },
   {
     question: "Can I customize the visual filter appearance?",
-    answer: "Choose an opaque cover or experimental blur and dimming for local playback. Blur can preserve flashing. Sensitivity adjustment and monochrome mode are not implemented.",
+    answer: "Choose an opaque cover or experimental blur and dimming for detected intervals during replay. Scanning, unknown gaps and failures always use an opaque cover. Blur can preserve flashing. Sensitivity adjustment and monochrome mode are not implemented.",
   },
   {
     question: "What flash frequencies are most hazardous for photosensitive epilepsy?",

@@ -1,87 +1,44 @@
-# VISION GUARD — Premium Landing Page
+# Vision Guard 0.2.0
 
-> **Watch freely. Stay aware.**
+Experimental Chrome extension and Next.js landing page. This is an assistive prototype, not a medically validated seizure-prevention device.
 
-A premium, dark-themed, modern landing page for **Vision Guard**, an open-source Chrome extension engineered to help individuals with photosensitive epilepsy and light sensitivity by detecting hazardous flashing sequences in YouTube videos and applying protective visual filtering at detected timestamps without interrupting playback.
+## YouTube workflow
 
----
+1. Open a YouTube watch page with protection and automatic pre-scan enabled (defaults).
+2. The extension keeps the video picture black, mutes audio, returns to the beginning, and analyzes frames delivered by the existing player at normal speed. Leave the tab visible. Expect roughly the video duration plus buffering time.
+3. After reaching the end it rewinds, restores the original mute and speed settings, and starts replay. If autoplay is blocked, press Play.
+4. During replay, potential hazard intervals receive an opaque cover, or experimental blur if selected. Unknown frame gaps always stay opaque. Audio and playback continue during interval covering.
 
-## 🎨 Design Philosophy & Principles
+The popup reports scan state, progress, observed timeline coverage, potential hazard intervals and unknown gaps. Stop scan retains covering. Scan from beginning retries failed or interrupted scans. Disable protection explicitly to watch without this tool's covering. Continuous cover remains available.
 
-Inspired by the editorial aesthetics of **Linear, Ollama, ElevenLabs, and Vercel**:
+This is a covered first pass, not simultaneous access to unseen future YouTube frames. It uses the normal player and Canvas APIs; it does not extract stream URLs, download restricted streams, disable browser security, or bypass CORS/DRM. Pixel access is tested on each scan. Live streams and encrypted/inaccessible video cannot be analyzed. Ads and source changes invalidate the map; restart afterward. Backgrounding the tab stops the scan with a covered failure state.
 
-- **Color Palette**: Deep charcoal and obsidian (`#090909`, `#141414`, `#1C1C1C`) with subtle borders (`#262626`) and restrained cool sky/teal accents (`#38bdf8`, `#2dd4bf`).
-- **Atmosphere**: Calm, clinical, technically authoritative, and distraction-free. Avoids generic AI gradient clichés and excessive 3D blobs.
-- **Micro-Interactions**: Purposeful telemetry gauges, interactive scrubbing timeline, dynamic filter switcher, and live visualizer with safe synthetic previews.
-- **Safety First**: Safe demonstration previewing without exposing viewers to rapid strobe or seizure-inducing frequencies.
+## Install / update
 
----
+Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.2.0 in the popup.
 
-## 🚀 Key Sections
+## Local files
 
-1. **Section 1 — Navigation (`src/components/Navbar.tsx`)**:
-   - Distinctive minimal geometric aperture shield logo.
-   - Sticky translucent frosted navbar (`backdrop-blur-md`).
-   - Links to Product, How It Works, Features, Technology Standards, and FAQ.
-   - Primary "Get Extension" and GitHub source triggers.
+The popup also opens a local-file analyzer. It samples at 60 seeks per second of media duration before enabling playback. Files stay on the device.
 
-2. **Section 2 — Hero (`src/components/Hero.tsx`)**:
-   - Eyebrow: `INTRODUCING VISION GUARD`.
-   - Headline: `A safer way to experience video.`
-   - Supporting narrative on zero-pause uninterrupted viewing.
-   - Cinematic YouTube video player visualization with Vision Guard's real-time protection HUD.
-   - Technical trust badges: `0s Playback Pauses`, `100% On-Device & Private`, `WCAG 2.2 §2.3.1 compliant`.
+## Build and verify
 
-3. **Section 3 — Interactive Product Demonstration (`src/components/InteractiveDemo.tsx`)**:
-   - **The Centerpiece**: Fully interactive mock video player.
-   - Scrubber with marked hazard zones (`00:08 - 00:15` and `00:26 - 00:33`).
-   - Automated shield activation when playback crosses hazardous timestamps.
-   - Live telemetry console: Flash Frequency meter (Hz), Luminance Variance ($\Delta L$), and response latency ($3.4\,\text{ms}$).
-   - 3 customizable shield modes: Frosted Veil (Gaussian blur), Monochrome Dampen, and Obsidian Shield.
-   - Simulation safety guarantee: Strictly static and calm motion—contains 0 seizure-inducing strobes.
+- npm install
+- npm run lint
+- npm run test:detector
+- npm run build:extension (generates detector-content.js from the shared detector.mjs)
+- powershell -File package-extension.ps1 (builds the extension and refreshes public/downloads/vision-guard-extension.zip)
+- npm run build
+- npm run start -- --port 3100
+- npx playwright install chromium
+- node release-tests/check.cjs
+- node release-tests/extension.cjs
+- npm run test:youtube
 
-4. **Section 4 — How It Works (`src/components/HowItWorks.tsx`)**:
-   - **01 / Analyze**: Frame ingestion and luminance extraction via OffscreenCanvas.
-   - **02 / Detect**: ITU-R BT.1702 rolling window analysis triggering on $>3\,\text{Hz}$ flash rate.
-   - **03 / Protect**: Hardware-accelerated CSS filter mask deploying at the micro-second while audio continues.
-   - Interactive code pipeline explorer.
+The YouTube test runs an encoded flashing fixture only in headless Chromium, verifies detection, covering, replay, audio-state restoration, ad interruption and blocked canvas access, then tests a short real YouTube video. Network availability, YouTube changes and access challenges can affect that last test. Do not view hazardous test fixtures directly.
 
-5. **Section 5 — Core Features (`src/components/Features.tsx`)**:
-   - Asymmetric editorial bento grid showcasing: Proactive Detection, Seamless Playback, Timestamp Precision, Adaptive Visual Protection, and Privacy First (zero data uploaded).
+## Limits
 
-6. **Section 6 — Clinical & Safety Standards (`src/components/TechnologyStandards.tsx`)**:
-   - Grounded in W3C WCAG 2.2 §2.3.1, ITU-R BT.1702, and ISO 9241-391.
-   - Comprehensive comparative matrix: Standard Video Player vs Vision Guard Protected Experience.
+Experimental luminance, saturated-red intensity and edge heuristics downsample frames to 96×54. They do not implement calibrated WCAG red-chromaticity or visual-angle measurements or clinically validated pattern analysis. Results can miss hazards and create false positives. Coverage describes observed timeline continuity, not safety. Missed callbacks are mapped as covered gaps. Rendering and seek event timing cannot guarantee frame-exact protection. Browser crashes, other extensions and page changes can defeat visual covering. The tool does not cover thumbnails or arbitrary page content. Picture-in-Picture is disabled for the managed video but is not a supported protection surface. Blur can preserve flashes.
 
-7. **Section 7 — FAQ (`src/components/FAQ.tsx`)**:
-   - Accordion addressing common questions regarding playback continuity, on-device privacy, medical disclaimers, and browser compatibility.
-
-8. **Section 8 — CTA & Footer (`src/components/CTASection.tsx`, `src/components/Footer.tsx`)**:
-   - High-impact call to action with browser compatibility pills.
-   - Complete footer with accessibility statement, MIT license, and clinical disclaimer.
-
----
-
-## 🛠️ Technology Stack
-
-- **Framework**: Next.js 16 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS v4 with custom dark theme tokens
-- **Icons**: Lucide Icons & Custom SVG aperture assets
-- **Typography**: Geist Sans & Geist Mono
-
----
-
-## 💻 Development & Production
-
-To run the project locally:
-
-```bash
-# Navigate to project
-cd C:\Users\s3hl3\.gemini\antigravity\scratch\vision-guard
-
-# Run production server
-npm run build
-npm run start -p 3000
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
+See RELEASE-CHECKS.md for the verification scope. No clinical or seizure-prevention guarantees.
