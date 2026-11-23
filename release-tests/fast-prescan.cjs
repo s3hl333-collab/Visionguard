@@ -30,7 +30,7 @@ function bundledFFmpeg() {
   return path.join(folder,binary);
 }
 
-async function generateFixture(page, folder, {colorInterval = false, ordinaryFootage = false, seconds = duration, flashStart = 15} = {}) {
+async function generateFixture(page, folder, {colorInterval = false, ordinaryFootage = false, researchCases = false, seconds = duration, flashStart = 15} = {}) {
   const stills = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 96; canvas.height = 54;
@@ -41,6 +41,20 @@ async function generateFixture(page, folder, {colorInterval = false, ordinaryFoo
     });
   });
   const jpeg = stills.map(still=>Buffer.from(still,'base64'));
+  const research = researchCases ? await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 96; canvas.height = 54;
+    const ctx = canvas.getContext('2d');
+    return [102,119,134,147,'bands'].map(level => {
+      for (let y = 0; y < canvas.height; y++) {
+        const v = level === 'bands' ? (Math.floor(y / 3) % 2 ? 232 : 32) : level;
+        ctx.fillStyle = 'rgb(' + [v,v,v].join(',') + ')';
+        ctx.fillRect(0, y, canvas.width, 1);
+      }
+      return canvas.toDataURL('image/jpeg').split(',')[1];
+    });
+  }) : [];
+  const researchFrames = research.map(still => Buffer.from(still, 'base64'));
   const ordinary = ordinaryFootage ? await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 96; canvas.height = 54;
@@ -57,6 +71,8 @@ async function generateFixture(page, folder, {colorInterval = false, ordinaryFoo
   const shots = ordinary.map(still=>Buffer.from(still,'base64'));
   const frames = Array.from({length: seconds * rate}, (_, frame) => {
     const t = frame / rate;
+    if (researchCases && t >= 30 && t < 32) return researchFrames[[0,1,2,3,2,1][frame % 6]];
+    if (researchCases && t >= 36 && t < 38) return researchFrames[4];
     if (ordinaryFootage && t >= 4 && t < 10) return shots[frame - 4 * rate];
     if (colorInterval && t >= 22 && t < 24) return jpeg[3 + Math.floor(frame / 2) % 2];
     return t >= flashStart && t < flashStart + 2 ? jpeg[1 + Math.floor(frame / 2) % 2] : jpeg[0];

@@ -1,6 +1,6 @@
-# Vision Guard 0.3.3
+# Vision Guard 0.3.4
 
-Extract this ZIP. Open chrome://extensions, enable Developer Mode and select Load unpacked. Choose the folder containing manifest.json. When updating an existing installation, replace its files, click Reload on the extension card and reload YouTube. Check version 0.3.3 in the popup.
+Extract this ZIP. Open chrome://extensions, enable Developer Mode and select Load unpacked. Choose the folder containing manifest.json. When updating an existing installation, replace its files, click Reload on the extension card and reload YouTube. Check version 0.3.4 in the popup.
 
 Fast mode is the default on YouTube. The original picture stays opaque while inspected frames are displayed at up to 1280×720. Audio continues. Detected changes automatically freeze, blur and dim the last inspected picture. If no prior picture is available, the screen stays covered. An isolated cut can briefly hold the previous clear frame. Repeated brightness or color changes in the same area and dense high-contrast stripes activate the filter. The detector can miss hazards. For timestamp-based replay, choose section pre-scans (12 seconds at a time) or a whole-video pre-scan in the popup.
 

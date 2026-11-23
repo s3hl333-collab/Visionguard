@@ -19,7 +19,7 @@ const os = require('node:os');
     const control = await context.newPage();
     await control.goto('chrome-extension://'+await item.getAttribute('id')+'/local.html');
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(),'vg-before-display-'));
-    const bytes = await generateFixture(control, temporary, {colorInterval:true, ordinaryFootage:true});
+    const bytes = await generateFixture(control, temporary, {colorInterval:true, ordinaryFootage:true, researchCases:true});
     // Delete only the known, generated fixture as soon as its bytes are in memory.
     fs.unlinkSync(path.join(temporary,'fixture.webm'));
     fs.rmdirSync(temporary);
@@ -93,6 +93,7 @@ const os = require('node:os');
       const video=document.querySelector('video'),canvas=document.querySelector('.vg-inspected-picture');
       let frames=0, exposed=0, blurred=0, rawVisible=0, firstBlur=null;
       const observed = new Set();
+      const filteredPixels = new Set();
       const probe = document.createElement('canvas').getContext('2d',{willReadFrequently:true});
       video.currentTime=start-1.5;
       await new Promise(resolve=>{ const poll=()=>{
@@ -104,27 +105,34 @@ const os = require('node:os');
           if(!canvas.hidden && /blur\(28px\).*brightness\(0.35\)/.test(getComputedStyle(canvas).filter)){
             blurred++;
             firstBlur ??= video.currentTime;
+            filteredPixels.add(canvas.getContext('2d').getImageData(10,10,1,1).data[0]);
           }
           if(!canvas.hidden){
             const pixel=canvas.getContext('2d').getImageData(10,10,1,1).data;
-            if ([pixel[0],pixel[1],pixel[2]].some(channel=>Math.abs(channel-102)>8)) exposed++;
+            // The gradual pulse can show its initial low-contrast steps.
+            const maxLevel = start === 30 ? 139 : 110;
+            if ([pixel[0],pixel[1],pixel[2]].some(channel=>channel < 94 || channel > maxLevel)) exposed++;
           }
         }
         if(video.currentTime>start+4.5)resolve();else requestAnimationFrame(poll);
       };poll();});
-      return {start,frames,exposed,blurred,firstBlur,rawVisible,sourceColors:[...observed].slice(0,12),paused:video.paused,
+      return {start,frames,exposed,blurred,firstBlur,rawVisible,filteredLevels:[...filteredPixels],sourceColors:[...observed].slice(0,12),paused:video.paused,
         restored:!canvas.hidden && getComputedStyle(canvas).filter==='none'};
       },start);
     }
     const sample=[];
-    for(const start of [15,22]){
+    const starts = [15,22,30,36];
+    for(const start of starts){
       const result=await checkInterval(start);
-      assert.ok(result.blurred>result.frames*0.9 && result.firstBlur!==null && result.firstBlur<start+.15 && result.restored,JSON.stringify(result));
+      const deadline = start === 30 ? .32 : .15;
+      assert.ok(result.blurred > result.frames*(1-deadline/2-.025) && result.firstBlur!==null && result.firstBlur<start+deadline && result.restored,JSON.stringify(result));
+      assert.equal(result.filteredLevels.length, 1, 'Filtered picture must stay frozen');
+      if (start === 30) assert.ok(result.sourceColors.length >= 3);
       assert.deepEqual([result.exposed,result.rawVisible,result.paused],[0,0,false]);
       sample.push(result);
     }
     const report=await status();
-    for (const start of [15,22]) assert.ok(report.intervals.some(i=>Math.abs(i.start-start)<.15 && i.end>=start+2),JSON.stringify(report));
+    for (const start of starts) assert.ok(report.intervals.some(i=>Math.abs(i.start-start)<(start === 30 ? .32 : .15) && i.end>=start+2),JSON.stringify(report));
     await page.goto('https://www.youtube.com/watch?v=vg-blocked');
     await page.locator('video').evaluate(v=>v.play());
     await page.waitForFunction(()=>document.querySelector('video').currentTime>.4);

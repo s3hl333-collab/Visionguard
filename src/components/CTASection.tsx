@@ -50,7 +50,7 @@ export function CTASection() {
             </a>
           </div>
 
-          <p className="text-sm text-[#a3a3a3]">Version 0.3.3 · Experimental developer-mode installation. Extract the ZIP, open chrome://extensions, enable Developer Mode, choose Load unpacked, and select the extracted folder. When updating, replace the old files, click Reload on the extension card, then reload your YouTube tab. This is not a Chrome Web Store installation.</p>
+          <p className="text-sm text-[#a3a3a3]">Version 0.3.4 · Experimental developer-mode installation. Extract the ZIP, open chrome://extensions, enable Developer Mode, choose Load unpacked, and select the extracted folder. When updating, replace the old files, click Reload on the extension card, then reload your YouTube tab. This is not a Chrome Web Store installation.</p>
           <p className="text-sm text-amber-200">Assistive tool, not a medically validated seizure-prevention device. Sampled analysis can miss hazards. Unanalyzed content is not known to be safe. Blur may leave flashes visible.</p>
           {/* Browser Support Pills */}
           <div className="pt-6 border-t border-[#1f1f1f] flex flex-wrap items-center justify-center gap-3 text-xs text-[#737373] font-mono">

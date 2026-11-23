@@ -42,6 +42,79 @@ test('Fast mode filters dense high-contrast stripes on the first frame', () => {
   for (let i = 4; i < stripes.length; i += 8) stripes.fill(255, i, i + 3);
   assert.equal(new FastDetector().inspect(0, stripes), 'filter');
 });
+
+function pattern(levelAt) {
+  const pixels = frame(0);
+  for (let y = 0; y < 54; y++) {
+    for (let x = 0; x < 96; x++) {
+      const offset = (y * 96 + x) * 4;
+      pixels.fill(levelAt(x, y), offset, offset + 3);
+    }
+  }
+  return pixels;
+}
+
+test('smooth luminance reversals are recognized across frame rates', () => {
+  for (const fps of [24, 30, 60, 120]) {
+    const detector = new FastDetector();
+    let first = Infinity;
+    const scan = new Detector();
+    for (let i = 0; i <= fps; i++) {
+      const time = i * 1000 / fps;
+      const level = Math.round(126 - 24 * Math.cos(time * 2 * Math.PI / 200));
+      const pixels = frame(level);
+      if (detector.inspect(time, pixels) === 'filter') first = Math.min(first, time);
+      scan.push(time / 1000, pixels);
+    }
+    assert.ok(first <= 220, `No timely reversal at ${fps} fps: ${first}`);
+    assert.ok(covered(0.5, scan.intervals), `Missing pre-scan interval at ${fps} fps`);
+  }
+});
+
+test('a slow exposure change and a camera fade do not confirm flicker', () => {
+  const detector = new FastDetector();
+  for (let i = 0; i <= 240; i++) {
+    const level = Math.round(124 - 50 * Math.cos(i * 2 * Math.PI / 240));
+    assert.notEqual(detector.inspect(i * 1000 / 60, frame(level)), 'filter');
+  }
+});
+
+test('pre-scan requires seven alternating luminance changes within a one-second window', () => {
+  const dark = frame(64), bright = frame(145);
+  function scan(times) {
+    const detector = new Detector();
+    detector.push(0, dark);
+    times.forEach((time, index) => detector.push(time, index % 2 ? dark : bright));
+    return detector.intervals.length;
+  }
+  assert.equal(scan([.1,.2,.3,.4,.5,.6]), 0);
+  assert.equal(scan([.1,.2,.3,.4,.5,.6,.7]), 1);
+  assert.equal(scan([.1,.2,.4,.6,.8,1,1.1]), 0);
+});
+
+test('regular bands in three orientations are detected across playback modes', () => {
+  for (const position of [(x) => x, (_, y) => y, (x, y) => x + y]) {
+    const bands = pattern((x, y) => Math.floor(position(x, y) / 3) % 2 ? 232 : 32);
+    const scan = new Detector();
+    scan.push(0, bands);
+    assert.equal(scan.intervals.length, 1);
+    assert.equal(new FastDetector().inspect(0, bands), 'filter');
+  }
+});
+
+test('still irregular texture and single edges do not count as repeating bands', () => {
+  let seed = 731;
+  const noise = pattern(() => {
+    seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+    return seed >>> 31 ? 255 : 0;
+  });
+  for (const pixels of [noise, pattern((x) => x < 48 ? 0 : 255)]) {
+    const scan = new Detector();
+    scan.push(0, pixels);
+    assert.equal(scan.intervals.length, 0);
+    assert.equal(new FastDetector().inspect(0, pixels), 'show');
+  }
+});
 test('known strobe interval is mapped before playback',()=>{const d=new Detector();for(let i=0;i<360;i++){const t=i/60;d.push(t,frame(t>=2 && t<4 ? (Math.floor(t*16)%2?255:0):100));}assert.equal(d.intervals.length,1);assert.ok(d.intervals[0].start<=2);assert.ok(d.intervals[0].end>=4);assert.ok(!covered(0,d.intervals));assert.ok(covered(3,d.intervals));assert.ok(!covered(5.9,d.intervals));});
 test('steady content does not fabricate hazard intervals',()=>{const d=new Detector();for(let i=0;i<180;i++)d.push(i/60,frame(100));assert.deepEqual(d.intervals,[]);});
 test('timestamp lookup handles seeks and speed independently',()=>{const intervals=[{start:2,end:4}];for(const [t,want] of [[3,true],[1,false],[4,true],[7,false],[2,true]])assert.equal(covered(t,intervals),want);});

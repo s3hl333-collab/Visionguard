@@ -1,4 +1,35 @@
-# Vision Guard 0.3.3 verification
+# Vision Guard 0.3.4 research and verification
+
+## What changed
+
+The previous detector could miss a brightness pulse whose individual frame changes were small. W3C defines a transition in terms of a peak and valley in brightness. Fast mode and pre-scan now compare regional luminance over up to 100 ms and check for a reversal in the same parts of the image. This additional check requires agreement across at least a quarter of the sampled frame. The 100 ms window and spatial threshold are engineering choices. [W3C flash definitions](https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html)
+
+Pre-scan counts seven alternating brightness transitions in a sliding one-second window. Fast mode can intervene on the first confirmed reversal because it has no future frames to inspect. It can show early, low-contrast steps of a gradual pulse before it freezes the picture. Color-change detection has separate heuristics.
+
+The old stripe check counted strong edges in one direction. It flagged the static random texture in our test and missed horizontal bands. The new check looks for repeated light/dark spacing along both rows and columns. It detected the horizontal, vertical and diagonal bands we tested. Curved, fine and localized patterns remain harder after downsampling. ITU guidance also considers displayed area and luminance, which this browser extension cannot measure at the viewer’s eye. [ITU-R BT.1702-3](https://www.itu.int/rec/R-REC-BT.1702/en)
+
+## Published luminance comparison
+
+We evaluated all 234 temporal CSVs in the TRACE `rel_lum` suite at revision `ef78542`. Each CSV row supplied a uniform full-frame color at 30 fps. The table counts sequences receiving at least one filter decision or pre-scan interval. The published labels classify the temporal signal. This comparison does not exercise the project’s spatial masks, red-flash suite, video decoding or clinical outcomes. We used this suite during development, so the numbers are descriptive and cannot estimate accuracy on unseen videos. [Jordan’s evaluation method](https://doi.org/10.1007/978-3-031-93848-1_7) · [TRACE reference data](https://github.com/traceRERC/pse-test-media/tree/ef78542aad496827f25064f57aaf13d6a741ba75/lum_flash_patterns/rel_lum)
+
+| Reference group | Sequences | Fast 0.3.3 | Fast 0.3.4 | Pre-scan 0.3.3 | Pre-scan 0.3.4 |
+|---|---:|---:|---:|---:|---:|
+| Exceeds luminance and count thresholds | 90 | 90 | 90 | 90 | 90 |
+| Passes on count | 54 | 54 | 54 | 54 | 0 |
+| Passes on luminance | 54 | 0 | 9 | 0 | 0 |
+| Includes a below-threshold flash that makes the sequence pass | 36 | 36 | 36 | 0 | 0 |
+
+Fast mode filtered nine additional below-threshold sequences after gaining sensitivity to multi-frame excursions. Pre-scan agreed with all 234 temporal labels. To reproduce, check out the pinned TRACE revision and run `node release-tests/reference-luminance.mjs <path-to-lum_flash_patterns/rel_lum>` from the Vision Guard project. This reads numbers locally and displays no flashing media.
+
+## Browser and detector regressions
+
+Headless Chromium exercised abrupt brightness flashes, abrupt color changes, a gradual four-level pulse and horizontal stripes. The gradual pulse test checks that the picture stays frozen once filtered and that playback recovers. A separate control checks that ordinary cuts and a moving subject keep advancing. The unit suite additionally exercises gradual reversals at 24, 30, 60 and 120 fps, a slow exposure change, irregular texture and the one-second counting boundary.
+
+On the final build, the ordinary-motion fixture showed zero blurred samples out of 360. Blur began about 92 ms into the brightness flash, 73 ms into the color change, 200 ms into the gradual pulse and 13 ms into the band pattern. The gradual pulse held at gray level 119 while the source reached 147. On the first 12 seconds of one live YouTube clip, neither release chose blur on any of 163 common samples. The revised detector held the clear picture on ten samples. Its core analysis took about 0.1 ms median and 0.2 ms at the 95th percentile after ten warm-up samples. The measurement excludes video decoding, canvas readback and rendering.
+
+The live whole-video pre-scan reached replay on a 19.02-second clip. Its measured coverage was 57%, with two sampling gaps kept opaque. The benchmark above supplies every frame and therefore cannot predict coverage on a live player.
+
+## Earlier 0.3.3 verification
 
 ## Fast-mode false positives
 
