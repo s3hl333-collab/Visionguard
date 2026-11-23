@@ -1,4 +1,6 @@
-# Vision Guard 0.3.5
+# Vision Guard 0.3.6
+
+For smoother video, select **Native playback · dim flashing areas** in the popup. YouTube renders the original picture. A translucent neutral mask reduces contrast in regions with sustained brightness or saturated-red flashes. Isolated cuts and low-contrast changes generally remain visible. Early flashes may appear before the sequence is recognized. Static pattern detection and before-display inspection are available in the original Fast mode.
 
 Experimental Chrome extension and Next.js landing page. This is an assistive prototype, not a medically validated seizure-prevention device.
 
@@ -15,7 +17,7 @@ All modes use normal browser media APIs. Pixel-access restrictions keep the pict
 
 ## Install / update
 
-Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.3.5 in the popup.
+Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.3.6 in the popup.
 
 ## Local files
 

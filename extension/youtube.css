@@ -18,6 +18,7 @@ html[data-vg-instant-on] :is(#cinematics, #cinematics-container) { display: none
   box-sizing: border-box;
 }
 .vg-inspected-picture[hidden] { display: none !important; }
+.vg-inspected-picture.vg-regional-mask { background: transparent !important; }
 .vg-inspected-picture[data-vg-trigger-blur] {
   filter: blur(28px) brightness(.35) !important;
   clip-path: inset(0);

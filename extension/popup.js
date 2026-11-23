@@ -1,4 +1,4 @@
-const defaults = { enabled:true, conservative:false, mode:'overlay', instantFilter:'blur', autoAnalyze:true, instantPreview:true, scanWholeVideo:false };
+const defaults = { enabled:true, conservative:false, mode:'overlay', instantFilter:'blur', autoAnalyze:true, instantPreview:true, targetedPlayback:false, scanWholeVideo:false };
 const byId = id => document.getElementById(id);
 const status = byId('status');
 let tabId;
@@ -6,11 +6,13 @@ let connected = false;
 
 function displayStrategy(strategy) {
   byId('fast-filter-control').hidden = strategy !== 'instant';
-  byId('prescan-controls').hidden = strategy === 'instant';
-  byId('scan-actions').hidden = strategy === 'instant';
-  byId('timeline-title').textContent = strategy === 'instant' ? 'Recently covered moments' : 'Detected intervals';
+  const live = strategy === 'instant' || strategy === 'regional';
+  byId('prescan-controls').hidden = live;
+  byId('scan-actions').hidden = live;
+  byId('timeline-title').textContent = strategy === 'regional' ? 'Recently dimmed moments' : live ? 'Recently covered moments' : 'Detected intervals';
   byId('strategy-info').textContent = {
     instant:'Checks each frame before drawing it. An isolated cut may briefly hold the clear picture. Rapid reversals and dense stripes activate the filter. Playback keeps its original audio and speed.',
+    regional:'Plays the original video and dims regions with repeated strong brightness or saturated-red changes. Early flashes can be visible. Static stripes are outside this mode’s scope.',
     segments:'Scans a short section, plays it, then covers and mutes the picture while preparing the next section.',
     whole:'Scans the whole video first. Replay then runs without section breaks.'
   }[strategy];
@@ -21,11 +23,12 @@ try {
   const [tab] = await chrome.tabs.query({active:true, currentWindow:true});
   tabId = tab?.id;
   const strategy = byId('strategy');
-  strategy.value = saved.instantPreview !== false ? 'instant' : saved.scanWholeVideo ? 'whole' : 'segments';
+  strategy.value = saved.instantPreview !== false ? (saved.targetedPlayback ? 'regional' : 'instant') : saved.scanWholeVideo ? 'whole' : 'segments';
   displayStrategy(strategy.value);
   strategy.addEventListener('change', async () => {
     try {
-      await chrome.storage.local.set({instantPreview:strategy.value === 'instant',scanWholeVideo:strategy.value === 'whole'});
+      const regional = strategy.value === 'regional';
+      await chrome.storage.local.set({instantPreview:strategy.value === 'instant' || regional,targetedPlayback:regional,scanWholeVideo:strategy.value === 'whole'});
       displayStrategy(strategy.value);
       if (connected) await chrome.tabs.reload(tabId);
       status.textContent = 'Mode saved. The new mode starts when the YouTube tab loads.';
@@ -51,12 +54,12 @@ async function update() {
     const instant = result.strategy === 'instant';
     byId('progress').hidden = instant;
     if (!instant) byId('progress').value = result.segmentProgress ?? result.progress ?? 0;
-    byId('coverage').textContent = instant
+    byId('coverage').textContent = result.regional ? result.checked + ' frames sampled during native playback' : instant
       ? result.checked + ' frames inspected during playback · ' + result.shown + ' displayed'
       : Math.floor(result.coverage * 100) + '% of video analyzed · ' + result.intervals.length + ' potential hazard intervals';
     byId('timeline').textContent = result.intervals.length
       ? result.intervals.map(i => i.start.toFixed(2)+'–'+i.end.toFixed(2)+' s').join('\n')
-      : instant ? 'No covered moments recorded in this session.' : 'No hazard intervals recorded.';
+      : result.regional ? 'No dimmed moments recorded in this session.' : instant ? 'No covered moments recorded in this session.' : 'No hazard intervals recorded.';
     const scanning = ['analyzing','preparing','rewinding'].includes(result.state);
     byId('scan').disabled = scanning || !result.video;
     byId('stop').disabled = !scanning;

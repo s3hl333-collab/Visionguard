@@ -339,6 +339,72 @@ class FastDetector {
   }
 }
 
+// Independent hysteresis and transition windows keep a moving cut in one part
+// of the frame from completing a flash sequence in a different part.
+class TileSwings {
+  constructor(count, threshold) {
+    this.threshold = threshold;
+    this.extreme = new Float64Array(count).fill(NaN);
+    this.direction = new Int8Array(count);
+    this.next = new Uint8Array(count);
+    this.times = new Float64Array(count * 7).fill(-Infinity);
+  }
+
+  push(tile, value, now) {
+    const extreme = this.extreme[tile];
+    const direction = this.direction[tile];
+    if (Number.isNaN(extreme) || (value - extreme) * direction > 0) {
+      this.extreme[tile] = value;
+      return false;
+    }
+    if (Math.abs(value - extreme) < this.threshold) return false;
+    this.direction[tile] = Math.sign(value - extreme);
+    this.extreme[tile] = value;
+    const base = tile * 7;
+    const slot = this.next[tile];
+    this.times[base + slot] = now;
+    this.next[tile] = (slot + 1) % 7;
+    return now - this.times[base + this.next[tile]] < 1000;
+  }
+}
+
+class RegionalFlashDetector {
+  constructor() {
+    this.cols = WIDTH / 6;
+    this.rows = HEIGHT / 6;
+    const tiles = this.cols * this.rows;
+    this.luma = new TileSwings(tiles, 0.1);
+    this.red = new TileSwings(tiles, 0.2);
+    this.until = new Float64Array(tiles).fill(-Infinity);
+    this.opacity = new Uint8Array(tiles);
+  }
+
+  inspect(now, rgba) {
+    let active = 0;
+    for (let tile = 0; tile < this.opacity.length; tile++) {
+      const left = (tile % this.cols) * 6;
+      const top = Math.floor(tile / this.cols) * 6;
+      let light = 0, red = 0;
+      for (let y = top; y < top + 6; y++) {
+        let i = 4 * (y * WIDTH + left);
+        for (let x = 0; x < 6; x++, i += 4) {
+          const r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
+          light += RED_LUMA[r] + GREEN_LUMA[g] + BLUE_LUMA[b];
+          if (LINEAR[r] > 0 && LINEAR[r] >= 4 * (LINEAR[g] + LINEAR[b])) red += LINEAR[r];
+        }
+      }
+      // Changes wholly above 0.8 cannot complete a general flash here.
+      const swing = this.luma.push(tile, Math.min(0.9, light / 36), now);
+      const redSwing = this.red.push(tile, red / 36, now);
+      if (swing || redSwing) this.until[tile] = now + 280;
+      // A neutral veil compresses both bright and dark phases. Release gently.
+      this.opacity[tile] = Math.round(228 * Math.max(0, Math.min(1, (this.until[tile] + 180 - now) / 180)));
+      if (this.opacity[tile]) active++;
+    }
+    return active;
+  }
+}
+
 function covered(time, intervals) {
   if (!Number.isFinite(time)) return false;
   let low = 0;
@@ -353,5 +419,5 @@ function covered(time, intervals) {
   return false;
 }
 
-globalThis.VisionGuardDetector = { Detector, FastDetector, covered };
+globalThis.VisionGuardDetector = { Detector, FastDetector, RegionalFlashDetector, covered };
 })();

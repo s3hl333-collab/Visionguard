@@ -160,13 +160,37 @@ const os = require('node:os');
     assert.equal(await page.locator('video').evaluate(v=>getComputedStyle(v).filter),'brightness(0)');
     console.log(JSON.stringify({startupMs,fixtureDuration:48,sample,blocked:'covered',errors}));
     assert.deepEqual(errors,[]);
+    await control.evaluate(() => chrome.storage.local.set({targetedPlayback:true}));
+    await page.reload();
+    await page.locator('video').evaluate(v => v.play());
+    await page.waitForFunction(() => document.querySelector('video').currentTime > .4);
+    assert.equal((await status()).state,'unavailable','Unreadable regional playback must stay covered');
+    await page.goto('https://www.youtube.com/watch?v=vg-test');
+    await page.locator('video').evaluate(v => {v.currentTime=42; return v.play();});
+    await page.waitForFunction(() => document.querySelector('video').currentTime > 44);
+    const mask = await page.evaluate(() => {
+      const canvas = document.querySelector('.vg-regional-mask'), v = document.querySelector('video');
+      const ctx = canvas.getContext('2d');
+      return {left:ctx.getImageData(9,9,1,1).data[3],right:ctx.getImageData(80,9,1,1).data[3],
+        maskVisible:!canvas.hidden, background:getComputedStyle(canvas).backgroundColor,
+        filter:getComputedStyle(v).filter,paused:v.paused,rate:v.playbackRate};
+    });
+    assert.ok(mask.left >= 220 && mask.left < 255 && mask.right === 0, JSON.stringify(mask));
+    assert.deepEqual([mask.maskVisible,mask.background,mask.filter,mask.paused,mask.rate],[true,'rgba(0, 0, 0, 0)','none',false,1]);
+    await page.waitForFunction(() => document.querySelector('video').currentTime > 45.7);
+    assert.equal(await page.locator('.vg-regional-mask').isVisible(),false);
+    assert.ok((await status()).blocks > 0);
+    await control.evaluate(() => chrome.storage.local.set({conservative:true}));
+    await page.waitForFunction(() => getComputedStyle(document.querySelector('video')).filter === 'brightness(0)');
+    await control.evaluate(() => chrome.storage.local.set({conservative:false}));
+    console.log('Regional playback', JSON.stringify(mask));
     if(process.env.VG_LIVE==='1'){
       await page.goto('https://www.youtube.com/watch?v=jNQXAC9IVRw',{waitUntil:'domcontentloaded'});
       await page.waitForFunction(()=>document.querySelector('#movie_player video')?.readyState>=2,null,{timeout:45000});
       const liveStart=performance.now();
       await page.locator('#movie_player video').first().evaluate(v=>v.play());
-      await page.waitForFunction(()=>document.querySelector('.vg-inspected-picture')?.hidden===false,null,{timeout:20000});
-      console.log('LIVE',JSON.stringify({timeToFirstInspectedMs:Math.round(performance.now()-liveStart),status:await status()}));
+      await page.waitForFunction(()=>document.querySelector('#movie_player video')?.dataset.vgVisual==='visible',null,{timeout:20000});
+      console.log('LIVE regional',JSON.stringify({timeToNativePictureMs:Math.round(performance.now()-liveStart),status:await status()}));
     }
   } finally { await context.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

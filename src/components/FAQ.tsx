@@ -23,7 +23,7 @@ const FAQS: FAQItem[] = [
   },
   {
     question: "Can I customize the visual filter appearance?",
-    answer: "Fast mode automatically freezes, blurs and dims the previous inspected picture during detected changes. You can select an opaque cover instead. Pre-scanned replay has a separate filter setting. Scanning, unknown gaps and failures always use an opaque cover. Blur can preserve flashing. Sensitivity adjustment and monochrome mode are not implemented.",
+    answer: "Choose Native playback to dim regions with repeated strong brightness or saturated-red changes while the surrounding video keeps moving. Early flashes can be visible while the detector recognizes a sequence. Fast mode freezes and filters an inspected picture. Pre-scanned replay has a separate filter setting. Unreadable video stays covered.",
   },
   {
     question: "What flash frequencies are most hazardous for photosensitive epilepsy?",

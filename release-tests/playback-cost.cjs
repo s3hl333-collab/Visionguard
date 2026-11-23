@@ -29,7 +29,7 @@ async function encodedMotion() {
   } finally { await browser.close(); }
 }
 
-async function measure(extension, width, encoded) {
+async function measure(extension, width, encoded, regional) {
   const native = extension === null;
   const context = await chromium.launchPersistentContext('', {channel:'chromium', headless:true,
     args:native ? [] : ['--disable-extensions-except='+extension,'--load-extension='+extension]});
@@ -42,6 +42,7 @@ async function measure(extension, width, encoded) {
       await item.waitFor();
       control = await context.newPage();
       await control.goto('chrome-extension://'+await item.getAttribute('id')+'/local.html');
+      if (regional) await control.evaluate(() => chrome.storage.local.set({targetedPlayback:true}));
     }
     const page = await context.newPage();
     await page.route('https://www.youtube.com/watch?v=vg-cost', route => route.fulfill({
@@ -68,7 +69,8 @@ async function measure(extension, width, encoded) {
       draw(performance.now());
       await video.play();
     }, {width,encoded});
-    if (!native) await page.waitForFunction(() => document.querySelector('.vg-inspected-picture')?.hidden === false);
+    if (regional) await page.waitForFunction(() => document.querySelector('video')?.dataset.vgVisual === 'visible');
+    else if (!native) await page.waitForFunction(() => document.querySelector('.vg-inspected-picture')?.hidden === false);
     const status = () => native ? null : control.evaluate(async () => {
       const [tab] = await chrome.tabs.query({active:true,currentWindow:true});
       return chrome.tabs.sendMessage(tab.id,{type:'VG_STATUS'});
@@ -86,14 +88,17 @@ async function measure(extension, width, encoded) {
     const end = await taskMs(), last = await quality(), after = await status();
     const size = native ? null : await page.locator('.vg-inspected-picture').evaluate(c=>[c.width,c.height]);
     const dropped = last.dropped-first.dropped, total = last.total-first.total;
-    const shown = native ? total-dropped : after.shown-before.shown;
+    const shown = native || regional ? total-dropped : after.shown-before.shown;
     assert.ok(shown > 50, JSON.stringify({before,after,shown}));
     if (!native) {
       assert.ok(after.checked >= after.shown);
       assert.equal(after.blocks,0,'Ordinary motion activated the filter');
-      assert.equal(after.checked-before.checked,shown,'Ordinary motion held an inspected frame');
+      if (regional) {
+        assert.ok(after.regional && after.checked-before.checked > 50);
+        assert.equal(after.active,false);
+      } else assert.equal(after.checked-before.checked,shown,'Ordinary motion held an inspected frame');
     }
-    console.log(JSON.stringify({extension:extension || 'native',input:encoded?'VP9':'captureStream',viewportWidth:width,output:size,shown,
+    console.log(JSON.stringify({extension:extension || 'native',regional,input:encoded?'VP9':'captureStream',viewportWidth:width,output:size,shown,
       dropped,total,mediaSeconds:+(last.media-first.media).toFixed(2),
       mainThreadMsPerShownFrame:+((end-begin)/shown).toFixed(3)}));
   } finally { await context.close(); }
@@ -101,6 +106,7 @@ async function measure(extension, width, encoded) {
 (async () => {
   const encoded = process.env.VG_ENCODED === '1' ? await encodedMotion() : null;
   for (const extension of process.argv.slice(2).length ? process.argv.slice(2) : ['extension']) {
-    for (const width of [480,960]) await measure(extension === '--native' ? null : path.resolve(extension),width,encoded);
+    const regional = extension === '--regional';
+    for (const width of [480,960]) await measure(extension === '--native' ? null : path.resolve(regional ? 'extension' : extension),width,encoded,regional);
   }
 })().catch(error=>{console.error(error);process.exitCode=1;});

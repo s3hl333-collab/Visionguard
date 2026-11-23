@@ -1,4 +1,12 @@
-# Vision Guard 0.3.5 playback performance
+# Vision Guard 0.3.6 native playback and regional dimming
+
+The opt-in Native playback mode lets Chrome present the video at its original resolution and speed. It monitors 96×54 samples. Each of 144 regions independently counts alternating changes in brightness and a saturated-red signal. Seven qualifying transitions inside one second activate a translucent neutral mask for that region. The mask reduces the difference between bright and dark frames and fades after the sequence. Separate regions can dim independently. Single cuts and low-amplitude pulses do not accumulate unrelated changes elsewhere in the picture.
+
+The transition count and brightness threshold are informed by [W3C flash guidance](https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html). The sampled regions and saturated-red signal are heuristics. They do not model viewing distance, HDR display luminance or the full W3C red chromaticity test. This mode can miss flashes and allows the beginning of a sequence to appear. For advance screening, use pre-scan. [Chrome's video callback documentation](https://web.dev/articles/requestvideoframecallback-rvfc) explains why live sampling can miss a presented frame.
+
+In five-second headless Chromium trials on an ordinary 1080p/60 VP9 clip, native playback with regional monitoring showed 301 frames at a 480 px player width and 302 at 960 px, with zero reported drops or dimming events. Page main-thread time was 2.81 and 3.07 ms per presented frame. The existing inspected-frame mode showed 233 and 263 frames in a separate run of the same fixture. These are local measurements. Reproduce with `VG_ENCODED=1` and `node release-tests/playback-cost.cjs --native extension --regional`.
+
+## Earlier 0.3.5 playback performance
 
 Fast mode captures each inspected frame once. For small players it uses a private canvas sized for the displayed player and device pixel ratio, up to the existing 720p limit. At 960×540 output pixels or larger it retains a decoded VideoFrame when available, avoiding a second large canvas copy. Both sampling and presentation use the same snapshot. The next video callback is requested before readback starts. During confirmation of a localized change, the renderer holds a padded rectangle around all suspect tiles and can redraw the inspected remainder. A confirmed trigger freezes and filters the whole picture. Full-frame changes can still hold the entire picture while the detector waits for a reversal.
 

@@ -1,9 +1,10 @@
 /* global VisionGuardDetector */
-// The source video remains black. Only a checked snapshot can reach the output canvas.
+// The inspected-frame path and opt-in native playback share player lifecycle handling.
 (async () => {
-  const settings = await chrome.storage.local.get({instantPreview: true, enabled: true, conservative: false, instantFilter: 'blur'});
+  const settings = await chrome.storage.local.get({instantPreview: true, targetedPlayback: false, enabled: true, conservative: false, instantFilter: 'blur'});
   if (!settings.instantPreview) return;
-  const { FastDetector } = VisionGuardDetector;
+  const { FastDetector, RegionalFlashDetector } = VisionGuardDetector;
+  const regional = settings.targetedPlayback;
   let video, key, source, frameId, resize, events, sample, sampleContext;
   let detector, previousTime, startupUntil, checked, shown, coveredAt, history, blocks;
   let previousPipSetting = false;
@@ -17,7 +18,9 @@
   const picture = document.createElement('canvas');
   picture.className = 'vg-inspected-picture';
   picture.setAttribute('aria-hidden', 'true');
-  const output = picture.getContext('2d', {alpha:false});
+  picture.classList.toggle('vg-regional-mask', regional);
+  const output = picture.getContext('2d', {alpha:regional});
+  let paintedMask;
   const player = () => document.querySelector('#movie_player');
   function watchKey() {
     if (cachedUrl !== location.href) {
@@ -37,7 +40,7 @@
   function freshHistory() {
     hasInspectedPicture = false;
     triggerHold = false;
-    if (!detector || previousTime !== -1) detector = new FastDetector();
+    if (!detector || previousTime !== -1) detector = regional ? new RegionalFlashDetector() : new FastDetector();
     previousTime = -1;
     startupUntil = performance.now() + 100;
     coveredAt = null;
@@ -57,6 +60,7 @@
     sample.height = 54;
     sampleContext = sample.getContext('2d', {willReadFrequently:true, alpha:false});
     snapshot = document.createElement('canvas');
+    if (regional) {snapshot.width = 96; snapshot.height = 54;}
     capture = snapshot.getContext('2d', {alpha:false});
   }
   function layout() {
@@ -89,6 +93,58 @@
     }
     frameId = video.requestVideoFrameCallback(inspect);
   }
+  function renderMask() {
+    // Match the video's intrinsic aspect ratio so object-fit and letterboxing
+    // position the coarse mask over the same source pixels, including Shorts.
+    const scale = Math.min(1, 256 / Math.max(video.videoWidth, video.videoHeight));
+    const width = Math.max(1, Math.round(video.videoWidth * scale));
+    const height = Math.max(1, Math.round(video.videoHeight * scale));
+    const {opacity, cols, rows} = detector;
+    if (width !== picture.width || height !== picture.height) {
+      picture.width = width;
+      picture.height = height;
+      paintedMask = null;
+    }
+    if (!paintedMask) paintedMask = new Uint8Array(opacity.length);
+    for (let i = 0; i < opacity.length; i++) {
+      if (paintedMask[i] === opacity[i]) continue;
+      const x = i % cols, y = Math.floor(i / cols);
+      const left = Math.round(x * width / cols), top = Math.round(y * height / rows);
+      const w = Math.round((x + 1) * width / cols) - left;
+      const h = Math.round((y + 1) * height / rows) - top;
+      output.clearRect(left, top, w, h);
+      if (opacity[i]) {
+        output.fillStyle = 'rgba(90,90,90,' + opacity[i] / 255 + ')';
+        output.fillRect(left, top, w, h);
+      }
+      paintedMask[i] = opacity[i];
+    }
+  }
+  function inspectRegional(now, time) {
+    // Downscale before crossing from video rendering into CPU-readable memory.
+    capture.drawImage(video, 0, 0, 96, 54);
+    sampleContext.drawImage(snapshot, 0, 0);
+    const active = detector.inspect(now, sampleContext.getImageData(0, 0, 96, 54).data);
+    checked++;
+    previousTime = time;
+    if (active) {
+      renderMask();
+      if (picture.hidden) {picture.hidden = false; layout();}
+      if (coveredAt === null) {
+        blocks++;
+        coveredAt = {start:time, end:time};
+        history.push(coveredAt);
+        if (history.length > 100) history.shift();
+      }
+      coveredAt.end = time;
+    } else {
+      if (!picture.hidden) picture.hidden = true;
+      coveredAt = null;
+    }
+    if (video.dataset.vgVisual !== 'visible') video.dataset.vgVisual = 'visible';
+    state = 'instant';
+    message = active ? 'Dimming repeated flashes in the affected area.' : 'Native playback · monitoring for repeated flashes.';
+  }
   function inspect(now, metadata) {
     frameId = null;
     if (!video || failure || !settings.enabled || settings.conservative || document.hidden) return;
@@ -110,6 +166,10 @@
       queueFrame();
       const time = metadata.mediaTime;
       if (time <= previousTime || time - previousTime > Math.max(.45, .45 * video.playbackRate)) freshHistory();
+      if (regional) {
+        inspectRegional(now, time);
+        return;
+      }
       // Capture once. Inspection and presentation read the same private snapshot.
       const vw = video.videoWidth, vh = video.videoHeight;
       const scale = Math.min(1, 1280/vw, 720/vh, Math.max(targetWidth/vw, targetHeight/vh, 96/vw, 54/vh));
@@ -255,8 +315,9 @@
   document.addEventListener('fullscreenchange', layout);
   chrome.runtime.onMessage.addListener((request, sender, reply) => {
     if (sender.id !== chrome.runtime.id || request?.type !== 'VG_STATUS') return;
-    reply({strategy:'instant', state, message, video:!!video, checked:checked || 0, shown:shown || 0,
-      active:!!video && settings.enabled && (picture.hidden || picture.hasAttribute('data-vg-trigger-blur')), blocks:blocks || 0, intervals:history || []});
+    const active = regional ? video?.dataset.vgVisual === 'cover' || !picture.hidden : picture.hidden || picture.hasAttribute('data-vg-trigger-blur');
+    reply({strategy:'instant', regional, state, message, video:!!video, checked:checked || 0, shown:shown || 0,
+      active:!!video && settings.enabled && active, blocks:blocks || 0, intervals:history || []});
   });
   reconcile();
   let timer = setInterval(reconcile, 250);

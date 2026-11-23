@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {Detector,FastDetector,covered} from './detector.mjs';
+import {Detector,FastDetector,RegionalFlashDetector,covered} from './detector.mjs';
 function frame(value){const data=new Uint8ClampedArray(96*54*4);for(let i=0;i<data.length;i+=4){data[i]=data[i+1]=data[i+2]=value;data[i+3]=255;}return data;}
 
 test('Fast mode holds an isolated cut briefly and releases a one-way fade', () => {
@@ -12,6 +12,27 @@ test('Fast mode holds an isolated cut briefly and releases a one-way fade', () =
   }
   assert.equal(detector.inspect(275, frame(255)), 'show');
   assert.equal(detector.inspect(500, frame(255)), 'show');
+});
+
+test('regional dimming ignores isolated flashes, slow alternation and weak flicker', () => {
+  for (const [low,high,step,frames] of [[20,240,60,3],[20,240,210,30],[100,106,45,30],[240,255,50,30]]) {
+    const detector = new RegionalFlashDetector();
+    for (let i = 0; i < frames; i++) assert.equal(detector.inspect(i*step,frame(i%2 ? high : low)),0);
+  }
+});
+
+test('regional dimming isolates repeated saturated red with little luminance change and releases smoothly', () => {
+  const detector = new RegionalFlashDetector(), base = frame(110), pulse = base.slice();
+  for (let y=0; y<12; y++) for (let x=0; x<12; x++) {
+    pulse.set([220,0,0,255],(y*96+x)*4);
+  }
+  for (let i=0;i<7;i++) assert.equal(detector.inspect(i*60,i%2 ? pulse : base),0);
+  assert.equal(detector.inspect(420,pulse),4);
+  assert.equal(detector.opacity[0],228);
+  assert.equal(detector.opacity[3],0);
+  assert.equal(detector.inspect(790,pulse),4);
+  assert.ok(detector.opacity[0] > 0 && detector.opacity[0] < 228);
+  assert.equal(detector.inspect(881,pulse),0);
 });
 
 test('Fast mode confirms a reversal in the same region and releases quiet footage', () => {
