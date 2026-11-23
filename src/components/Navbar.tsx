@@ -48,7 +48,7 @@ export function Navbar() {
                 VISION GUARD
               </span>
               <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#262626] text-[#a3a3a3] bg-[#141414]">
-                v0.3.1 · preview
+                v0.3.2 · preview
               </span>
             </div>
           </Link>
@@ -67,7 +67,7 @@ export function Navbar() {
           </nav>
 
           {/* Action CTAs */}
-          <div className="hidden sm:flex items-center gap-3">
+          <div className="hidden md:flex items-center gap-3">
             <div className="flex items-center gap-1.5 text-[11px] font-mono text-[#737373] px-2.5 py-1 rounded bg-[#141414] border border-[#262626]">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
               <span>Manifest V3</span>
@@ -83,7 +83,7 @@ export function Navbar() {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="flex sm:hidden items-center gap-2">
+          <div className="flex md:hidden items-center gap-2">
             <a
               href="#install"
               className="px-3 py-1.5 text-xs font-medium text-white bg-[#1c1c1c] border border-[#262626] rounded-md"
@@ -104,7 +104,7 @@ export function Navbar() {
 
       {/* Mobile Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="sm:hidden border-b border-[#262626] bg-[#090909]/95 backdrop-blur-xl px-4 py-4 space-y-2 mt-2">
+        <nav aria-label="Page sections" className="md:hidden border-b border-[#262626] bg-[#090909]/95 backdrop-blur-xl px-4 py-4 space-y-2 mt-2">
           {navLinks.map((link) => (
             <a
               key={link.label}
@@ -124,7 +124,7 @@ export function Navbar() {
               Free & Open Source
             </span>
           </div>
-        </div>
+        </nav>
       )}
     </header>
   );

@@ -1,17 +1,32 @@
 /* eslint-disable @typescript-eslint/no-require-imports -- Standalone Node CommonJS release runner. */
 const {chromium}=require('playwright');
+const AxeBuilder=require('@axe-core/playwright').default;
 const assert=require('node:assert/strict');
 const path=require('node:path');
 (async()=>{
  const extension=path.join(process.env.VISION_GUARD_PROJECT || process.cwd(),'extension');
- const profile=require('node:fs').mkdtempSync(path.join(require('node:os').tmpdir(),'vision-guard-qa-'));
- const context=await chromium.launchPersistentContext(profile,{channel:'chromium',headless:true,args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`]});
+ const context=await chromium.launchPersistentContext('',{channel:'chromium',headless:true,args:[`--disable-extensions-except=${extension}`,`--load-extension=${extension}`]});
  try{
  const manager=await context.newPage();await manager.goto('chrome://extensions');
  await manager.locator('extensions-item').first().waitFor();
  const id=await manager.locator('extensions-item').first().getAttribute('id');
  assert.ok(id);const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.goto(`chrome-extension://${id}/popup.html`);
+ const strategy=page.getByLabel('YouTube playback');
+ await page.locator('#prescan-controls').waitFor({state:'hidden'});
+ assert.ok(await page.getByLabel('When Fast mode detects a trigger').isVisible());
+ assert.equal(await page.getByLabel('Pre-scanned video filter').isVisible(),false);
+ const checkAccessibility=async () => {
+   const result=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+   assert.deepEqual(result.violations.map(v=>v.id),[]);
+ };
+ await checkAccessibility();
+ await strategy.selectOption('segments');
+ await page.getByLabel('Pre-scanned video filter').waitFor({state:'visible'});
+ assert.equal(await page.getByLabel('When Fast mode detects a trigger').isVisible(),false);
+ await checkAccessibility();
  await page.goto(`chrome-extension://${id}/local.html`);
+ await checkAccessibility();
  // Encoded fixture generated only in a headless browser; never displayed to users.
  const bytes=await page.evaluate(async()=>{
   const canvas=document.createElement('canvas');canvas.width=96;canvas.height=54;

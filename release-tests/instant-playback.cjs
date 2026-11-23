@@ -52,6 +52,16 @@ const os = require('node:os');
     });
     assert.ok([bounds.dx,bounds.dy,bounds.w,bounds.h].every(d=>d<2),JSON.stringify(bounds));
     assert.deepEqual([bounds.mute,bounds.rate,bounds.raw],[false,1,'brightness(0)']);
+    // Model two cache restores. Chromium automation may disable the real cache.
+    for (let restore = 0; restore < 2; restore++) {
+      await page.evaluate(() => {
+        window.dispatchEvent(new PageTransitionEvent('pagehide', {persisted:true}));
+        if (document.querySelector('.vg-inspected-picture')) throw Error('Old canvas survived pagehide');
+        window.dispatchEvent(new PageTransitionEvent('pageshow', {persisted:true}));
+      });
+      await page.waitForFunction(() => document.querySelector('.vg-inspected-picture')?.hidden === false);
+      assert.equal(await page.locator('video').evaluate(v => getComputedStyle(v).filter), 'brightness(0)');
+    }
     // Watch actual canvas pixel values in the encoded strobe, including its first transition.
     async function checkInterval(start) {
       return page.evaluate(async start => {

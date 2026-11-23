@@ -179,7 +179,7 @@
   }
   function reconcile() {
     const identity = watchKey();
-    const next = identity && (player()?.querySelector('video.html5-main-video') || document.querySelector('video'));
+    const next = identity ? (player()?.querySelector('video.html5-main-video') || document.querySelector('video')) : null;
     document.documentElement?.toggleAttribute('data-vg-instant-bypass', !settings.enabled || !identity);
     document.documentElement?.toggleAttribute('data-vg-instant-on', settings.enabled && !!identity);
     if (next !== video || identity !== key) attach(next || null, identity);
@@ -215,6 +215,14 @@
       active:!!video && settings.enabled && (picture.hidden || picture.hasAttribute('data-vg-trigger-blur')), blocks:blocks || 0, intervals:history || []});
   });
   reconcile();
-  const timer = setInterval(reconcile, 250);
-  window.addEventListener('pagehide', () => {clearInterval(timer); detach();}, {once:true});
+  let timer = setInterval(reconcile, 250);
+  window.addEventListener('pagehide', () => {
+    clearInterval(timer);
+    detach();
+  });
+  window.addEventListener('pageshow', event => {
+    if (!event.persisted) return;
+    reconcile();
+    timer = setInterval(reconcile, 250);
+  });
 })().catch(() => { /* The document-start stylesheet keeps video pixels covered on initialization failure. */ });

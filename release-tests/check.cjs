@@ -6,7 +6,7 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),crypto=require(
  const browser=await chromium.launch({channel:'chrome',headless:true});
  try{
  const context=await browser.newContext({reducedMotion:'reduce'});const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
- await page.goto('http://localhost:3100');
+ await page.goto(process.env.VISION_GUARD_SITE_URL || 'http://localhost:3100');
  const downloadPromise=page.waitForEvent('download');
  await page.getByRole('link',{name:'Download Vision Guard for Chrome',exact:true}).first().click();
  const download=await downloadPromise;
@@ -15,6 +15,15 @@ const fs=require('node:fs'),assert=require('node:assert/strict'),crypto=require(
  const project=process.env.VISION_GUARD_PROJECT || process.cwd();
  assert.equal(hash(fs.readFileSync(await download.path())),hash(fs.readFileSync(require('node:path').join(project,'public/downloads/vision-guard-extension.zip'))));
  const desktop=await new AxeBuilder({page}).withTags(['wcag2a','wcag2aa','wcag21aa']).analyze();
+ await page.setViewportSize({width:700,height:900});
+ const menu=page.getByRole('button',{name:'Toggle menu'});
+ await menu.focus();
+ await menu.press('Enter');
+ const sections=page.getByRole('navigation',{name:'Page sections'});
+ assert.ok(await sections.getByRole('link',{name:'FAQ'}).isVisible());
+ await sections.getByRole('link',{name:'FAQ'}).click();
+ assert.equal(new URL(page.url()).hash,'#faq');
+ assert.equal(await menu.getAttribute('aria-expanded'),'false');
  await page.setViewportSize({width:390,height:844});
  await page.getByRole('button',{name:'Toggle menu'}).click();
  await page.waitForFunction(()=>document.querySelector('[aria-label="Toggle menu"]').getAttribute('aria-expanded')==='true');

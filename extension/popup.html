@@ -2,14 +2,16 @@
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="style.css"><title>Vision Guard</title></head>
 <body class="popup">
-  <h1>VISION GUARD <small>0.3.1 · experimental</small></h1>
+  <h1>VISION GUARD <small>0.3.2 · experimental</small></h1>
   <label><input id="enabled" type="checkbox">Protection enabled</label>
   <label>YouTube playback<select id="strategy"><option value="instant">Fast · inspect as I watch</option><option value="segments">Pre-scan 12-second sections</option><option value="whole">Pre-scan the whole video</option></select></label>
   <p id="strategy-info"></p>
   <label id="fast-filter-control">When Fast mode detects a trigger<select id="instantFilter"><option value="blur">Freeze, blur and dim</option><option value="overlay">Opaque cover</option></select></label>
   <label><input id="conservative" type="checkbox">Keep all YouTube visuals covered</label>
-  <div id="prescan-controls"><label><input id="autoAnalyze" type="checkbox">Start pre-scans automatically</label></div>
-  <label>Pre-scanned video filter<select id="mode"><option value="overlay">Opaque cover (recommended)</option><option value="blur">Blur + dim (experimental)</option></select></label>
+  <div id="prescan-controls">
+    <label><input id="autoAnalyze" type="checkbox">Start pre-scans automatically</label>
+    <label>Pre-scanned video filter<select id="mode"><option value="overlay">Opaque cover (recommended)</option><option value="blur">Blur + dim (experimental)</option></select></label>
+  </div>
   <p id="status" role="status">Checking current tab…</p>
   <progress id="progress" max="1" value="0" aria-label="Scan progress"></progress>
   <p id="coverage">No analyzed coverage.</p>

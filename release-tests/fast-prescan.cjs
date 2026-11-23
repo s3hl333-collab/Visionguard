@@ -30,7 +30,7 @@ function bundledFFmpeg() {
   return path.join(folder,binary);
 }
 
-async function generateFixture(page, folder, {colorInterval = false} = {}) {
+async function generateFixture(page, folder, {colorInterval = false, seconds = duration, flashStart = 15} = {}) {
   const stills = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 96; canvas.height = 54;
@@ -41,10 +41,10 @@ async function generateFixture(page, folder, {colorInterval = false} = {}) {
     });
   });
   const jpeg = stills.map(still=>Buffer.from(still,'base64'));
-  const frames = Array.from({length: duration * rate}, (_, frame) => {
+  const frames = Array.from({length: seconds * rate}, (_, frame) => {
     const t = frame / rate;
     if (colorInterval && t >= 22 && t < 24) return jpeg[3 + Math.floor(frame / 2) % 2];
-    return t >= 15 && t < 17 ? jpeg[1 + Math.floor(frame / 2) % 2] : jpeg[0];
+    return t >= flashStart && t < flashStart + 2 ? jpeg[1 + Math.floor(frame / 2) % 2] : jpeg[0];
   });
   const output = path.join(folder,'fixture.webm');
   const proc = spawnSync(bundledFFmpeg(), ['-hide_banner','-loglevel','error','-f','image2pipe','-vcodec','mjpeg','-framerate',String(rate),'-i','pipe:0','-c:v','libvpx-vp9','-pix_fmt','yuv420p','-g',String(rate),'-deadline','realtime','-cpu-used','8',output],{input:Buffer.concat(frames),windowsHide:true});

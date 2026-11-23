@@ -1,4 +1,4 @@
-# Vision Guard 0.3.1
+# Vision Guard 0.3.2
 
 Experimental Chrome extension and Next.js landing page. This is an assistive prototype, not a medically validated seizure-prevention device.
 
@@ -15,7 +15,7 @@ All modes use normal browser media APIs. Pixel-access restrictions keep the pict
 
 ## Install / update
 
-Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.3.1 in the popup.
+Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.3.2 in the popup.
 
 ## Local files
 
