@@ -75,7 +75,7 @@ const os = require('node:os');
             samples++;
             if (picture.hidden) hidden++;
             if (picture.hasAttribute('data-vg-trigger-blur')) blurred++;
-            const pixels = picture.getContext('2d').getImageData(0, 24, 96, 1).data;
+            const pixels = picture.getContext('2d').getImageData(0,24,96,1).data;
             seen.add(pixels.toString());
           }
           if (video.currentTime >= 10) resolve(); else requestAnimationFrame(poll);
@@ -87,6 +87,66 @@ const os = require('node:os');
     console.log('Ordinary cuts and motion', JSON.stringify(ordinary));
     assert.ok(ordinary.samples > 50 && ordinary.distinctRows > 48, JSON.stringify(ordinary));
     assert.deepEqual([ordinary.blurred, ordinary.hidden], [0,0]);
+    const separated = await page.evaluate(async () => {
+      const video=document.querySelector('video'),picture=document.querySelector('.vg-inspected-picture');
+      video.currentTime=11.5;
+      let corner=0, otherCorner=0, middle=0;
+      await new Promise(resolve=>{
+        function probe() {
+          if (video.currentTime >= 12 && video.currentTime < 12.20) {
+            corner=Math.max(corner,picture.getContext('2d').getImageData(8,8,1,1).data[0]);
+            otherCorner=Math.max(otherCorner,picture.getContext('2d').getImageData(84,42,1,1).data[0]);
+            middle=Math.max(middle,picture.getContext('2d').getImageData(48,24,1,1).data[0]);
+          }
+          if(video.currentTime >= 12.21) resolve(); else requestAnimationFrame(probe);
+        }
+        probe();
+      });
+      return {corner,otherCorner,middle};
+    });
+    assert.ok(separated.corner >= 94 && separated.corner <= 110 && separated.otherCorner >= 94 &&
+      separated.otherCorner <= 110 && separated.middle >= 113,JSON.stringify(separated));
+    console.log('Separated scene changes',JSON.stringify(separated));
+    // Delay one real ImageBitmap past a completed seek. It must never be read
+    // or presented after the player has moved to a different scene.
+    const cdp = await context.newCDPSession(page);
+    const worlds = [];
+    cdp.on('Runtime.executionContextCreated',({context})=>worlds.push(context));
+    await cdp.send('Runtime.enable');
+    const isolated = worlds.find(w=>w.origin.startsWith('chrome-extension://'));
+    assert.ok(isolated);
+    const runIsolated = async expression => {
+      const response = await cdp.send('Runtime.evaluate',{expression,contextId:isolated.id,awaitPromise:true,returnByValue:true});
+      assert.ok(!response.exceptionDetails,JSON.stringify(response.exceptionDetails));
+      return response.result.value;
+    };
+    await runIsolated(`new Promise((ready,reject) => {
+      const timeout = setTimeout(()=>reject(Error('No Fast snapshot received')),3000);
+      const capture = window.createImageBitmap;
+      window.createImageBitmap = async (...args) => {
+        window.createImageBitmap = capture;
+        const old = await capture.apply(window,args);
+        const proto = CanvasRenderingContext2D.prototype, draw = proto.drawImage;
+        let staleReads = 0;
+        proto.drawImage = function(source,...rest) {
+          if (source === old) staleReads++;
+          return draw.call(this,source,...rest);
+        };
+        await new Promise(resolve=>{
+          window.releaseOldFrame = resolve;
+          window.finishStaleCheck = () => {proto.drawImage=draw;return staleReads;};
+          clearTimeout(timeout); ready(true);
+        });
+        return old;
+      };
+    })`);
+    await page.locator('video').evaluate(v=>new Promise(resolve=>{
+      v.addEventListener('seeked',resolve,{once:true}); v.currentTime=2;
+    }));
+    await runIsolated('releaseOldFrame()');
+    await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
+    assert.equal(await runIsolated('finishStaleCheck()'),0);
+    await cdp.detach();
     // Watch actual canvas pixel values in the encoded strobe, including its first transition.
     async function checkInterval(start) {
       return page.evaluate(async start => {
@@ -237,6 +297,16 @@ const os = require('node:os');
       await page.locator('#movie_player video').first().evaluate(v=>v.play());
       await page.waitForFunction(()=>document.querySelector('#movie_player video')?.dataset.vgVisual==='visible',null,{timeout:20000});
       console.log('LIVE regional',JSON.stringify({timeToNativePictureMs:Math.round(performance.now()-liveStart),status:await status()}));
+      await control.evaluate(() => chrome.storage.local.set({targetedPlayback:false}));
+      await page.reload({waitUntil:'domcontentloaded'});
+      const liveVideo = page.locator('#movie_player video').first();
+      await liveVideo.evaluate(v=>v.play());
+      await page.waitForFunction(()=>document.querySelector('.vg-inspected-picture')?.hidden === false,null,{timeout:30000});
+      const before = await status(), first = await liveVideo.evaluate(v=>v.currentTime);
+      await page.waitForTimeout(3000);
+      const after = await status(), seconds = await liveVideo.evaluate(v=>v.currentTime) - first;
+      assert.ok(!after.regional && seconds > 1 && after.shown > before.shown,JSON.stringify({before,after,seconds}));
+      console.log('LIVE Fast',JSON.stringify({seconds,shown:after.shown-before.shown,blocks:after.blocks-before.blocks}));
     }
   } finally { await context.close(); }
 })().catch(error=>{console.error(error);process.exitCode=1;});

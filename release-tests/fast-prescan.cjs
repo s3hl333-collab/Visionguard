@@ -66,6 +66,13 @@ async function generateFixture(page, folder, {colorInterval = false, ordinaryFoo
       ctx.fillStyle = '#fff'; ctx.fillRect(left,0,3,24);
       images.push(canvas.toDataURL('image/jpeg').split(',')[1]);
     }
+    for (let i=0; i<6; i++) {
+      const shade = 102 + i*4;
+      ctx.fillStyle = 'rgb(' + [shade,shade,shade].join(',') + ')'; ctx.fillRect(0,0,96,54);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,24,18); ctx.fillRect(72,36,24,18);
+      images.push(canvas.toDataURL('image/jpeg').split(',')[1]);
+    }
     return images;
   }) : [];
   const researchFrames = research.map(still => Buffer.from(still, 'base64'));
@@ -85,6 +92,7 @@ async function generateFixture(page, folder, {colorInterval = false, ordinaryFoo
   const shots = ordinary.map(still=>Buffer.from(still,'base64'));
   const frames = Array.from({length: seconds * rate}, (_, frame) => {
     const t = frame / rate;
+    if (researchCases && t >= 12 && t < 13) return researchFrames[13 + Math.min(5,frame - 12*rate)];
     if (researchCases && t >= 46 && t < 47.5) return researchFrames[11 + Math.floor(frame / 2) % 2];
     if (researchCases && t >= 43 && t < 45) return Math.floor(frame / 2) % 2 ? researchFrames[5] : jpeg[0];
     if (researchCases && t >= 40 && t < 41) return researchFrames[5 + Math.min(5,frame - 40*rate)];

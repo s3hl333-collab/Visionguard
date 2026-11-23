@@ -11,6 +11,7 @@
   let hasInspectedPicture = false;
   let triggerHold = false;
   let snapshot, capture;
+  let inFlight;
   let targetWidth = 1280, targetHeight = 720;
   let sourceWidth = 0, sourceHeight = 0;
   let cachedUrl, cachedKey;
@@ -33,6 +34,7 @@
   const isAd = () => player()?.matches('.ad-showing, .ad-interrupting');
 
   function conceal() {
+    inFlight = null;
     picture.hidden = true;
     picture.removeAttribute('data-vg-trigger-blur');
     if (video) video.dataset.vgVisual = 'cover';
@@ -60,7 +62,8 @@
     sample.height = 54;
     sampleContext = sample.getContext('2d', {willReadFrequently:true, alpha:false});
     snapshot = document.createElement('canvas');
-    if (regional) {snapshot.width = 96; snapshot.height = 54;}
+    snapshot.width = 96;
+    snapshot.height = 54;
     capture = snapshot.getContext('2d', {alpha:false});
   }
   function layout() {
@@ -146,7 +149,28 @@
     state = 'instant';
     message = active ? 'Dimming repeated flashes in the affected area.' : 'Native playback · monitoring for repeated flashes.';
   }
-  function inspect(now, metadata) {
+  function drawUnaffected(image, width, height) {
+    const mask = detector.pendingTiles();
+    if (!mask || !mask.includes(0)) return;
+    const {cols,rows} = detector;
+    output.save();
+    try {
+      output.beginPath();
+      for (let y=0; y<rows; y++) {
+        const top = Math.ceil(y*height/rows), bottom = Math.floor((y+1)*height/rows);
+        let x=0;
+        while (x<cols) {
+          if (mask[y*cols+x]) { x++; continue; }
+          const left = Math.ceil(x*width/cols);
+          do { x++; } while (x<cols && !mask[y*cols+x]);
+          output.rect(left,top,Math.floor(x*width/cols)-left,bottom-top);
+        }
+      }
+      output.clip();
+      output.drawImage(image,0,0,width,height);
+    } finally { output.restore(); }
+  }
+  async function inspect(now, metadata) {
     frameId = null;
     if (!video || failure || !settings.enabled || settings.conservative || document.hidden) return;
     if (!video.isConnected || watchKey() !== key || source !== video.currentSrc) { reconcile(); return; }
@@ -161,10 +185,11 @@
       unavailable('Encrypted video and picture-in-picture are unsupported.');
       return;
     }
-    let decoded;
+    let decoded, ticket;
     try {
       // Reserve the next callback before performing this frame's readback.
       queueFrame();
+      if (inFlight) return;
       const time = metadata.mediaTime;
       if (time <= previousTime || time - previousTime > Math.max(.45, .45 * video.playbackRate)) freshHistory();
       if (regional) {
@@ -175,10 +200,19 @@
       const vw = video.videoWidth, vh = video.videoHeight;
       const scale = Math.min(1, 1280/vw, 720/vh, Math.max(targetWidth/vw, targetHeight/vh, 96/vw, 54/vh));
       const width = Math.max(1, Math.round(vw * scale)), height = Math.max(1, Math.round(vh * scale));
-      // A second large canvas blit can miss presentation deadlines. Retain the
-      // decoded frame directly for larger players on browsers that support it.
-      if (width * height >= 960 * 540 && typeof VideoFrame !== 'undefined') {
-        decoded = new VideoFrame(video);
+      // Keep only one pending capture. A seek or player replacement invalidates
+      // its ticket before the result can reach either the detector or display.
+      if (typeof createImageBitmap === 'function') {
+        ticket = {};
+        inFlight = ticket;
+        decoded = await createImageBitmap(video,{resizeWidth:width,resizeHeight:height,resizeQuality:'low'});
+        if (ticket !== inFlight) return;
+        if (!video?.isConnected || source !== video.currentSrc || watchKey() !== key ||
+            video.seeking || video.mediaKeys || document.pictureInPictureElement === video || document.hidden ||
+            !settings.enabled || settings.conservative || isAd()) {
+          conceal();
+          return;
+        }
       } else {
         if (snapshot.width !== width) snapshot.width = width;
         if (snapshot.height !== height) snapshot.height = height;
@@ -202,17 +236,7 @@
           picture.removeAttribute('data-vg-trigger-blur');
           if (decision === 'hold' && !picture.hidden && sourceWidth === vw && sourceHeight === vh &&
               picture.width === width && picture.height === height) {
-            const pending = detector.pendingBounds(width, height);
-            if (pending) {
-              output.save();
-              try {
-                output.beginPath();
-                output.rect(0, 0, width, height);
-                output.rect(pending.x, pending.y, pending.w, pending.h);
-                output.clip('evenodd');
-                output.drawImage(image, 0, 0, width, height);
-              } finally { output.restore(); }
-            }
+            drawUnaffected(image,width,height);
           }
           message = 'Checking a scene change.';
         } else {
@@ -240,11 +264,15 @@
         message = 'Playing inspected frames.';
       }
     } catch (error) {
-      unavailable(error.name === 'SecurityError' ? 'Chrome blocked frame access.' : 'Could not inspect this frame.');
-    } finally { decoded?.close(); }
+      if (!ticket || ticket === inFlight) unavailable(error.name === 'SecurityError' ? 'Chrome blocked frame access.' : 'Could not inspect this frame.');
+    } finally {
+      if (ticket === inFlight) inFlight = null;
+      decoded?.close();
+    }
     queueFrame();
   }
   function detach() {
+    inFlight = null;
     if (frameId != null) video?.cancelVideoFrameCallback(frameId);
     frameId = null;
     events?.abort();

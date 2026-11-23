@@ -1,4 +1,4 @@
-# Vision Guard 0.3.7
+# Vision Guard 0.3.8
 
 For smoother video, select **Native playback · dim flashing areas** in the popup. YouTube renders the original picture. A local mask reduces contrast where brightness or saturated red alternates rapidly. Several quick changes can activate dimming within a short burst, including when nearby lights alternate in different positions. Isolated cuts and low-contrast changes generally remain visible. Early flashes may appear before the sequence is recognized. Static pattern detection and before-display inspection are available in the original Fast mode.
 
@@ -17,7 +17,7 @@ All modes use normal browser media APIs. Pixel-access restrictions keep the pict
 
 ## Install / update
 
-Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.3.7 in the popup.
+Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.3.8 in the popup.
 
 ## Local files
 

@@ -1,8 +1,8 @@
-# Vision Guard 0.3.7
+# Vision Guard 0.3.8
 
 For smoother video, select **Native playback · dim flashing areas** in the popup. YouTube renders the original picture. A local mask reduces contrast where brightness or saturated red alternates rapidly. Several quick changes can activate dimming within a short burst, including when nearby lights alternate in different positions. Isolated cuts and low-contrast changes generally remain visible. Early flashes may appear before the sequence is recognized. Static pattern detection and before-display inspection are available in the original Fast mode.
 
-Extract this ZIP. Open chrome://extensions, enable Developer Mode and select Load unpacked. Choose the folder containing manifest.json. When updating an existing installation, replace its files, click Reload on the extension card and reload YouTube. Check version 0.3.7 in the popup.
+Extract this ZIP. Open chrome://extensions, enable Developer Mode and select Load unpacked. Choose the folder containing manifest.json. When updating an existing installation, replace its files, click Reload on the extension card and reload YouTube. Check version 0.3.8 in the popup.
 
 Fast mode is the default on YouTube. The original picture stays opaque while inspected frames are displayed at up to 1280×720. Audio continues. Detected changes automatically freeze, blur and dim the last inspected picture. If no prior picture is available, the screen stays covered. A possible local trigger briefly holds the changed area while the rest of the picture can advance. Repeated brightness or color changes in the same area and dense high-contrast stripes activate the filter. The detector can miss hazards. For timestamp-based replay, choose section pre-scans (12 seconds at a time) or a whole-video pre-scan in the popup.
 

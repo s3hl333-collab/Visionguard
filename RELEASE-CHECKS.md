@@ -1,4 +1,19 @@
-# Vision Guard 0.3.7 regional flash detection
+# Vision Guard 0.3.8 Fast-mode playback
+
+Fast mode captures an immutable bitmap at the inspected output size. Chrome can finish the capture asynchronously. Only one capture can be pending for the current scene. A seek, navigation or cover invalidates it. The visible canvas receives only inspected pixels. When separated regions change, Fast mode holds the suspect tiles plus a one-tile margin around each region. Clear areas between them can keep advancing during confirmation. A full-frame change can still cause a brief hold.
+
+The benchmark measured canvas presentations and source playback counters in the same task, on a prerecorded 1080p/60 VP9 clip. Each entry below gives two alternating five-second trials per release. Neither release activated a filter on this clip. Chrome reported zero source drops even in runs where the inspected canvas presented fewer pictures.
+
+| Player width | 0.3.7 inspected frames | 0.3.8 inspected frames | 0.3.7 main thread ms per draw | 0.3.8 main thread ms per draw |
+|---|---|---|---|---|
+| 480 px | 243, 229 | 301, 263 | 5.56, 5.40 | 6.63, 6.56 |
+| 960 px | 302, 227 | 272, 301 | 8.31, 7.15 | 7.25, 7.52 |
+
+The smaller player improved in both comparisons at a higher main-thread cost per draw. Results at 960 px varied by run. Ordinary footage can still stutter depending on the device and available rendering time.
+
+On the encoded two-corner scene change, the center advanced to gray level 116 while both corners held at 102. The ordinary cuts and motion control had zero hidden or blurred observations across 360 samples. A separate regression delayed a real bitmap across a seek and verified it was discarded before either sampling or display. The brightness, color, gradual-pulse, stripe and regional-dimming browser fixtures also passed.
+
+## Earlier 0.3.7 regional flash detection
 
 Native playback now analyzes 32×18 regions within the existing 96×54 sample. Opposing changes can cancel when two nearby lights are averaged together. The smaller regions resolved adjacent three-sample-wide lights in the regression fixture. Each region starts dimming on the third alternating transition if the first and third are at most 250 ms apart, or on seven transitions within one second. The early response is a tuning choice. Some rapid edits can also qualify.
 

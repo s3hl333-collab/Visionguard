@@ -258,26 +258,27 @@ class FastDetector {
     this.holdUntil = -Infinity;
     this.holdStartedAt = -Infinity;
     this.filterUntil = -Infinity;
+    this.cols = WIDTH / TILE_WIDTH;
+    this.rows = HEIGHT / TILE_HEIGHT;
+    this.heldTiles = new Uint8Array(TILE_COUNT);
   }
 
   // During confirmation, keep the last inspected pixels in every region that
   // changed since onset. Add a tile on each side for downsampling boundaries.
-  pendingBounds(width, height) {
+  pendingTiles() {
     const since = this.holdStartedAt;
-    const cols = WIDTH / TILE_WIDTH, rows = HEIGHT / TILE_HEIGHT;
-    let left = cols, top = rows, right = 0, bottom = 0;
+    const {cols,rows,heldTiles} = this;
+    heldTiles.fill(0);
+    let found = false;
     for (let tile = 0; tile < TILE_COUNT; tile++) {
       if (this.changedAt[tile] < since && this.history.signTimes[tile] < since) continue;
-      const x = tile % cols, y = Math.floor(tile / cols);
-      left = Math.min(left, x-1); right = Math.max(right, x+2);
-      top = Math.min(top, y-1); bottom = Math.max(bottom, y+2);
+      found = true;
+      const col = tile % cols, row = Math.floor(tile / cols);
+      for (let y = Math.max(0,row-1); y < Math.min(rows,row+2); y++) {
+        heldTiles.fill(1,y*cols+Math.max(0,col-1),y*cols+Math.min(cols,col+2));
+      }
     }
-    if (right <= left || bottom <= top) return null;
-    const x = Math.max(0, Math.floor(left * width / cols));
-    const y = Math.max(0, Math.floor(top * height / rows));
-    const w = Math.min(width, Math.ceil(right * width / cols)) - x;
-    const h = Math.min(height, Math.ceil(bottom * height / rows)) - y;
-    return w === width && h === height ? null : {x,y,w,h};
+    return found ? heldTiles : null;
   }
 
   inspect(now, rgba) {

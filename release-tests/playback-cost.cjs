@@ -77,18 +77,45 @@ async function measure(extension, width, encoded, regional) {
     });
     const cdp = await context.newCDPSession(page);
     await cdp.send('Performance.enable');
+    const worlds = [];
+    cdp.on('Runtime.executionContextCreated', ({context}) => worlds.push(context));
+    await cdp.send('Runtime.enable');
+    const world = native ? worlds.find(w=>w.auxData?.isDefault) :
+      worlds.find(w=>w.origin.startsWith('chrome-extension://'));
+    assert.ok(world,JSON.stringify(worlds));
+    const evaluate = async expression => {
+      const reply = await cdp.send('Runtime.evaluate',{contextId:world.id,expression,returnByValue:true});
+      assert.ok(!reply.exceptionDetails,JSON.stringify(reply.exceptionDetails));
+      return reply.result.value;
+    };
     const taskMs = async () => (await cdp.send('Performance.getMetrics')).metrics.find(m=>m.name==='TaskDuration').value*1000;
-    const quality = () => page.locator('video').evaluate(v => {
-      const q = v.getVideoPlaybackQuality();
-      return {dropped:q.droppedVideoFrames,total:q.totalVideoFrames,media:v.currentTime};
-    });
+    // Record actual inspected-picture draws in the content script's JS world.
+    // Sample source and output counters on the same clock and in the same task.
+    await evaluate(`(() => {
+      const v = document.querySelector('video'), times = [];
+      window.vgPerfSample = () => {
+        const q = v.getVideoPlaybackQuality();
+        return {dropped:q.droppedVideoFrames,total:q.totalVideoFrames,media:v.currentTime,times:times.slice()};
+      };
+      if (${!native && !regional}) {
+        const canvas = document.querySelector('.vg-inspected-picture');
+        const ctx = canvas.getContext('2d');
+        const draw = ctx.drawImage;
+        ctx.drawImage = function(...args) {
+          draw.apply(this,args);
+          times.push(performance.now());
+        };
+      }
+    })()`);
     await page.waitForTimeout(1000);
-    const before = await status(), first = await quality(), begin = await taskMs();
+    const before = await status(), first = await evaluate('vgPerfSample()'), begin = await taskMs();
     await page.waitForTimeout(5000);
-    const end = await taskMs(), last = await quality(), after = await status();
+    const end = await taskMs(), last = await evaluate('vgPerfSample()'), after = await status();
     const size = native ? null : await page.locator('.vg-inspected-picture').evaluate(c=>[c.width,c.height]);
     const dropped = last.dropped-first.dropped, total = last.total-first.total;
-    const shown = native || regional ? total-dropped : after.shown-before.shown;
+    const times = last.times.slice(first.times.length);
+    const shown = native || regional ? total-dropped : times.length;
+    const gaps = times.slice(1).map((t,i)=>t-times[i]).sort((a,b)=>a-b);
     assert.ok(shown > 50, JSON.stringify({before,after,shown}));
     if (!native) {
       assert.ok(after.checked >= after.shown);
@@ -96,10 +123,10 @@ async function measure(extension, width, encoded, regional) {
       if (regional) {
         assert.ok(after.regional && after.checked-before.checked > 50);
         assert.equal(after.active,false);
-      } else assert.equal(after.checked-before.checked,shown,'Ordinary motion held an inspected frame');
+      } else assert.equal(after.checked-before.checked,after.shown-before.shown,'Ordinary motion held an inspected frame');
     }
     console.log(JSON.stringify({extension:extension || 'native',regional,input:encoded?'VP9':'captureStream',viewportWidth:width,output:size,shown,
-      dropped,total,mediaSeconds:+(last.media-first.media).toFixed(2),
+      dropped,total,mediaSeconds:+(last.media-first.media).toFixed(2),p95DrawGapMs:gaps.length ? +gaps[Math.floor(gaps.length*.95)].toFixed(1) : null,
       mainThreadMsPerShownFrame:+((end-begin)/shown).toFixed(3)}));
   } finally { await context.close(); }
 }
