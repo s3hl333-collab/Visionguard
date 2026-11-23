@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Vision Guard",
-  "version": "0.3.4",
+  "version": "0.3.5",
   "description": "Inspect YouTube frames before displaying them, or pre-scan for timestamp-based covering. Includes local video analysis.",
   "permissions": ["storage", "activeTab"],
   "content_security_policy": {"extension_pages":"script-src 'self'; object-src 'none'; connect-src 'none'; base-uri 'none'"},

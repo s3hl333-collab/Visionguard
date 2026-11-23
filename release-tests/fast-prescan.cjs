@@ -45,7 +45,7 @@ async function generateFixture(page, folder, {colorInterval = false, ordinaryFoo
     const canvas = document.createElement('canvas');
     canvas.width = 96; canvas.height = 54;
     const ctx = canvas.getContext('2d');
-    return [102,119,134,147,'bands'].map(level => {
+    const images = [102,119,134,147,'bands'].map(level => {
       for (let y = 0; y < canvas.height; y++) {
         const v = level === 'bands' ? (Math.floor(y / 3) % 2 ? 232 : 32) : level;
         ctx.fillStyle = 'rgb(' + [v,v,v].join(',') + ')';
@@ -53,6 +53,15 @@ async function generateFixture(page, folder, {colorInterval = false, ordinaryFoo
       }
       return canvas.toDataURL('image/jpeg').split(',')[1];
     });
+    for (let i = 0; i < 6; i++) {
+      const shade = 102 + i*4;
+      ctx.fillStyle = 'rgb(' + [shade,shade,shade].join(',') + ')';
+      ctx.fillRect(0,0,96,54);
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,24,27);
+      images.push(canvas.toDataURL('image/jpeg').split(',')[1]);
+    }
+    return images;
   }) : [];
   const researchFrames = research.map(still => Buffer.from(still, 'base64'));
   const ordinary = ordinaryFootage ? await page.evaluate(() => {
@@ -71,6 +80,7 @@ async function generateFixture(page, folder, {colorInterval = false, ordinaryFoo
   const shots = ordinary.map(still=>Buffer.from(still,'base64'));
   const frames = Array.from({length: seconds * rate}, (_, frame) => {
     const t = frame / rate;
+    if (researchCases && t >= 40 && t < 41) return researchFrames[5 + Math.min(5,frame - 40*rate)];
     if (researchCases && t >= 30 && t < 32) return researchFrames[[0,1,2,3,2,1][frame % 6]];
     if (researchCases && t >= 36 && t < 38) return researchFrames[4];
     if (ordinaryFootage && t >= 4 && t < 10) return shots[frame - 4 * rate];
@@ -208,5 +218,5 @@ async function main() {
   }
 }
 
-module.exports = { generateFixture };
+module.exports = { generateFixture, bundledFFmpeg };
 if (require.main===module) main().catch(error=>{console.error(error);process.exitCode=1;});

@@ -1,4 +1,21 @@
-# Vision Guard 0.3.4 research and verification
+# Vision Guard 0.3.5 playback performance
+
+Fast mode captures each inspected frame once. For small players it uses a private canvas sized for the displayed player and device pixel ratio, up to the existing 720p limit. At 960×540 output pixels or larger it retains a decoded VideoFrame when available, avoiding a second large canvas copy. Both sampling and presentation use the same snapshot. The next video callback is requested before readback starts. During confirmation of a localized change, the renderer holds a padded rectangle around all suspect tiles and can redraw the inspected remainder. A confirmed trigger freezes and filters the whole picture. Full-frame changes can still hold the entire picture while the detector waits for a reversal.
+
+Chrome documents that video-frame callbacks run on the main thread and can arrive a display refresh late. The HTML standard specifies which video frame a canvas draw captures. Those constraints informed the single-snapshot design. The frequent CPU readback stays on the small analysis canvas. [Chrome video callback guide](https://web.dev/articles/requestvideoframecallback-rvfc) · [HTML canvas image sources](https://html.spec.whatwg.org/multipage/canvas.html#image-sources-for-2d-rendering-contexts) · [Chrome canvas readback guidance](https://developer.chrome.com/blog/canvas2d)
+
+The playback benchmark loads each unpacked build in headless Chromium and samples approximately five seconds after warm-up. Run `node release-tests/playback-cost.cjs --native <old-extension> <new-extension>` for a 1080p moving canvas stream, or set `VG_ENCODED=1` for an identical prerecorded 1080p/60 VP9 clip. It checks that every inspected frame of this steady-motion clip is shown during measurement and that the filter stays inactive. It reports page main-thread time per displayed frame. Native counts come from Chrome's playback counters and extension counts come from canvas presentations. The counters are sampled separately, so their time windows can differ slightly. Device, decoder, GPU, player size and system load affect the result.
+
+In the encoded local-trigger test, the left-hand bright region stayed held while the right-hand region updated within the first 200 ms. The final ordinary cuts and motion test recorded zero blurred or covered samples out of 357. Separate regressions passed for abrupt luminance changes, gradual pulses, color changes and stripes. The production landing page served the expected ZIP, and automated desktop and mobile accessibility checks reported zero violations on the tested views.
+
+| 1080p/60 steady motion | Native frames | 0.3.4 frames | 0.3.5 frames | 0.3.4 main thread ms/frame | 0.3.5 main thread ms/frame |
+|---|---:|---:|---:|---:|---:|
+| 480 px player | 303 | 244 | 255 | 5.97 | 4.61 |
+| 960 px player | 303 | 238 | 265 | 6.03 | 6.13 |
+
+These figures come from one back-to-back run of the packaged source on this machine. Both versions showed every frame they inspected during the measurement. Chrome recorded zero decoder drops in this run, even where the extension presented fewer pictures than native playback. Main-thread cost decreased at the smaller size and was similar at the larger size. Timing varied between runs. Fast mode still has a playback cost on ordinary video.
+
+## Earlier 0.3.4 research and verification
 
 ## What changed
 

@@ -1,12 +1,12 @@
-# Vision Guard 0.3.4
+# Vision Guard 0.3.5
 
 Experimental Chrome extension and Next.js landing page. This is an assistive prototype, not a medically validated seizure-prevention device.
 
 ## YouTube workflow
 
 1. Open a YouTube watch page with Protection enabled. **Fast · inspect as I watch** is the default.
-2. Fast mode keeps the source picture opaque and displays only inspected snapshots, at up to 1280×720. On a detected change, Fast mode freezes, blurs and dims the last inspected picture. Original audio and playback speed continue. An isolated cut can hold the last clear picture for up to 220 ms. Rapid reversals in the same area and dense high-contrast stripes activate the filter. Some triggers can still be missed.
-3. For a timeline before viewing, choose 12-second section pre-scans or a whole-video pre-scan. Section mode alternates between covered scanning and replay. Whole-video mode puts the wait at the beginning.
+2. Fast mode keeps the source picture opaque and displays only inspected snapshots, at up to 1280×720. On a detected change, Fast mode freezes, blurs and dims the last inspected picture. Original audio and playback speed continue. During a possible local trigger, playback can advance outside the held area. A full scene change can hold the whole picture for up to 220 ms. Rapid reversals in the same area and dense high-contrast stripes activate the filter. Some triggers can still be missed.
+3. For native YouTube playback through analyzed sections with no detected trigger, choose **Pre-scan the whole video**. This puts the scan before viewing. The 12-second option alternates between covered scanning and replay.
 4. During replay, potential hazard intervals receive an opaque cover, or experimental blur if selected. Unknown frame gaps always stay opaque. Audio and playback continue during interval covering.
 
 The popup shows inspected and displayed frame counts in fast mode, and timeline coverage in pre-scan modes. Changing modes reloads the active YouTube tab.
@@ -15,7 +15,7 @@ All modes use normal browser media APIs. Pixel-access restrictions keep the pict
 
 ## Install / update
 
-Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.3.4 in the popup.
+Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.3.5 in the popup.
 
 ## Local files
 

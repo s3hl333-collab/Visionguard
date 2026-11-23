@@ -1,0 +1,106 @@
+/* eslint-disable @typescript-eslint/no-require-imports -- Standalone Chromium runner. */
+const {chromium} = require('playwright');
+const path = require('node:path');
+const assert = require('node:assert/strict');
+const {spawnSync} = require('node:child_process');
+const {bundledFFmpeg} = require('./fast-prescan.cjs');
+
+async function encodedMotion() {
+  const browser = await chromium.launch({channel:'chromium',headless:true});
+  try {
+    const page = await browser.newPage();
+    const stills = await page.evaluate(() => {
+      const source = document.createElement('canvas');
+      source.width = 1920; source.height = 1080;
+      const ctx = source.getContext('2d');
+      return Array.from({length:60}, (_,i) => {
+        ctx.fillStyle = '#55616a'; ctx.fillRect(0,0,1920,1080);
+        ctx.fillStyle = '#738795'; ctx.fillRect(i*24,310,300,240);
+        return source.toDataURL('image/jpeg').split(',')[1];
+      });
+    });
+    const frames = stills.map(s=>Buffer.from(s,'base64'));
+    const input = Buffer.concat(Array.from({length:600},(_,i)=>frames[i%60]));
+    const encoded = spawnSync(bundledFFmpeg(),['-loglevel','error','-f','image2pipe','-vcodec','mjpeg','-framerate','60',
+      '-i','pipe:0','-c:v','libvpx-vp9','-pix_fmt','yuv420p','-deadline','realtime','-cpu-used','8','-f','webm','pipe:1'],
+      {input,windowsHide:true,maxBuffer:16*1024*1024});
+    assert.equal(encoded.status,0,String(encoded.error || encoded.stderr));
+    return 'data:video/webm;base64,' + encoded.stdout.toString('base64');
+  } finally { await browser.close(); }
+}
+
+async function measure(extension, width, encoded) {
+  const native = extension === null;
+  const context = await chromium.launchPersistentContext('', {channel:'chromium', headless:true,
+    args:native ? [] : ['--disable-extensions-except='+extension,'--load-extension='+extension]});
+  try {
+    let control;
+    if (!native) {
+      const manager = await context.newPage();
+      await manager.goto('chrome://extensions');
+      const item = manager.locator('extensions-item').first();
+      await item.waitFor();
+      control = await context.newPage();
+      await control.goto('chrome-extension://'+await item.getAttribute('id')+'/local.html');
+    }
+    const page = await context.newPage();
+    await page.route('https://www.youtube.com/watch?v=vg-cost', route => route.fulfill({
+      contentType:'text/html', body:'<div id="movie_player"><video class="html5-main-video" muted></video></div>'}));
+    await page.goto('https://www.youtube.com/watch?v=vg-cost');
+    await page.evaluate(async ({width,encoded}) => {
+      const video = document.querySelector('video');
+      video.width = width; video.height = width*9/16;
+      if (encoded) {
+        video.src = encoded;
+        await video.play();
+        return;
+      }
+      const input = document.createElement('canvas');
+      input.width = 1920; input.height = 1080;
+      const ctx = input.getContext('2d', {alpha:false});
+      const stream = input.captureStream(60);
+      video.srcObject = stream;
+      function draw(now) {
+        ctx.fillStyle = '#55616a'; ctx.fillRect(0,0,input.width,input.height);
+        ctx.fillStyle = '#738795'; ctx.fillRect((now / 4) % 1600,310,300,240);
+        requestAnimationFrame(draw);
+      }
+      draw(performance.now());
+      await video.play();
+    }, {width,encoded});
+    if (!native) await page.waitForFunction(() => document.querySelector('.vg-inspected-picture')?.hidden === false);
+    const status = () => native ? null : control.evaluate(async () => {
+      const [tab] = await chrome.tabs.query({active:true,currentWindow:true});
+      return chrome.tabs.sendMessage(tab.id,{type:'VG_STATUS'});
+    });
+    const cdp = await context.newCDPSession(page);
+    await cdp.send('Performance.enable');
+    const taskMs = async () => (await cdp.send('Performance.getMetrics')).metrics.find(m=>m.name==='TaskDuration').value*1000;
+    const quality = () => page.locator('video').evaluate(v => {
+      const q = v.getVideoPlaybackQuality();
+      return {dropped:q.droppedVideoFrames,total:q.totalVideoFrames,media:v.currentTime};
+    });
+    await page.waitForTimeout(1000);
+    const before = await status(), first = await quality(), begin = await taskMs();
+    await page.waitForTimeout(5000);
+    const end = await taskMs(), last = await quality(), after = await status();
+    const size = native ? null : await page.locator('.vg-inspected-picture').evaluate(c=>[c.width,c.height]);
+    const dropped = last.dropped-first.dropped, total = last.total-first.total;
+    const shown = native ? total-dropped : after.shown-before.shown;
+    assert.ok(shown > 50, JSON.stringify({before,after,shown}));
+    if (!native) {
+      assert.ok(after.checked >= after.shown);
+      assert.equal(after.blocks,0,'Ordinary motion activated the filter');
+      assert.equal(after.checked-before.checked,shown,'Ordinary motion held an inspected frame');
+    }
+    console.log(JSON.stringify({extension:extension || 'native',input:encoded?'VP9':'captureStream',viewportWidth:width,output:size,shown,
+      dropped,total,mediaSeconds:+(last.media-first.media).toFixed(2),
+      mainThreadMsPerShownFrame:+((end-begin)/shown).toFixed(3)}));
+  } finally { await context.close(); }
+}
+(async () => {
+  const encoded = process.env.VG_ENCODED === '1' ? await encodedMotion() : null;
+  for (const extension of process.argv.slice(2).length ? process.argv.slice(2) : ['extension']) {
+    for (const width of [480,960]) await measure(extension === '--native' ? null : path.resolve(extension),width,encoded);
+  }
+})().catch(error=>{console.error(error);process.exitCode=1;});

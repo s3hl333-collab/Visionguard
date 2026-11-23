@@ -132,6 +132,25 @@ const os = require('node:os');
       sample.push(result);
     }
     const report=await status();
+    const partial = await page.evaluate(async () => {
+      const video = document.querySelector('video'), canvas = document.querySelector('.vg-inspected-picture');
+      video.currentTime = 39.5;
+      await new Promise(resolve=>video.addEventListener('seeked',resolve,{once:true}));
+      let leftMax = 0, rightMax = 0;
+      await new Promise(resolve => {
+        function sample() {
+          if (video.currentTime >= 40 && video.currentTime < 40.20 && !canvas.hidden) {
+            const row = canvas.getContext('2d').getImageData(0,10,96,1).data;
+            leftMax = Math.max(leftMax,row[10*4]);
+            rightMax = Math.max(rightMax,row[80*4]);
+          }
+          if (video.currentTime >= 40.21) resolve(); else requestAnimationFrame(sample);
+        }
+        sample();
+      });
+      return {leftMax,rightMax};
+    });
+    assert.ok(partial.leftMax >= 94 && partial.leftMax <= 110 && partial.rightMax >= 113, JSON.stringify(partial));
     for (const start of starts) assert.ok(report.intervals.some(i=>Math.abs(i.start-start)<(start === 30 ? .32 : .15) && i.end>=start+2),JSON.stringify(report));
     await page.goto('https://www.youtube.com/watch?v=vg-blocked');
     await page.locator('video').evaluate(v=>v.play());

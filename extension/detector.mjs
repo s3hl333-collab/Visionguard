@@ -254,7 +254,28 @@ export class FastDetector {
     this.history = new LuminanceHistory();
     this.lastChange = -Infinity;
     this.holdUntil = -Infinity;
+    this.holdStartedAt = -Infinity;
     this.filterUntil = -Infinity;
+  }
+
+  // During confirmation, keep the last inspected pixels in every region that
+  // changed since onset. Add a tile on each side for downsampling boundaries.
+  pendingBounds(width, height) {
+    const since = this.holdStartedAt;
+    const cols = WIDTH / TILE_WIDTH, rows = HEIGHT / TILE_HEIGHT;
+    let left = cols, top = rows, right = 0, bottom = 0;
+    for (let tile = 0; tile < TILE_COUNT; tile++) {
+      if (this.changedAt[tile] < since && this.history.signTimes[tile] < since) continue;
+      const x = tile % cols, y = Math.floor(tile / cols);
+      left = Math.min(left, x-1); right = Math.max(right, x+2);
+      top = Math.min(top, y-1); bottom = Math.max(bottom, y+2);
+    }
+    if (right <= left || bottom <= top) return null;
+    const x = Math.max(0, Math.floor(left * width / cols));
+    const y = Math.max(0, Math.floor(top * height / rows));
+    const w = Math.min(width, Math.ceil(right * width / cols)) - x;
+    const h = Math.min(height, Math.ceil(bottom * height / rows)) - y;
+    return w === width && h === height ? null : {x,y,w,h};
   }
 
   inspect(now, rgba) {
@@ -301,7 +322,10 @@ export class FastDetector {
     if (changed >= MIN_CHANGED_TILES || swing !== 'show') {
       // Keep the current clean picture on a possible onset. Sustained motion
       // in one direction cannot continually extend this initial hold.
-      if (now - this.lastChange > CONFIRM_MS) this.holdUntil = now + CONFIRM_MS;
+      if (now - this.lastChange > CONFIRM_MS) {
+        this.holdStartedAt = now;
+        this.holdUntil = now + CONFIRM_MS;
+      }
       this.lastChange = now;
     }
     if (reversed >= MIN_CHANGED_TILES || swing === 'filter' || hasRegularBands(this.light)) {
