@@ -1,7 +1,47 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {Detector,covered} from './detector.mjs';
+import {Detector,FastDetector,covered} from './detector.mjs';
 function frame(value){const data=new Uint8ClampedArray(96*54*4);for(let i=0;i<data.length;i+=4){data[i]=data[i+1]=data[i+2]=value;data[i+3]=255;}return data;}
+
+test('Fast mode holds an isolated cut briefly and releases a one-way fade', () => {
+  const detector = new FastDetector();
+  assert.equal(detector.inspect(0, frame(32)), 'show');
+  assert.equal(detector.inspect(50, frame(150)), 'hold');
+  for (const [now, value] of [[100,175], [150,200], [200,225], [250,250]]) {
+    assert.equal(detector.inspect(now, frame(value)), 'hold');
+  }
+  assert.equal(detector.inspect(275, frame(255)), 'show');
+  assert.equal(detector.inspect(500, frame(255)), 'show');
+});
+
+test('Fast mode confirms a reversal in the same region and releases quiet footage', () => {
+  const dark = frame(56);
+  function patch(startX) {
+    const pixels = dark.slice();
+    for (let y = 9; y < 27; y++) {
+      for (let x = startX; x < startX + 24; x++) {
+        const offset = (y * 96 + x) * 4;
+        pixels.fill(235, offset, offset + 3);
+      }
+    }
+    return pixels;
+  }
+  const detector = new FastDetector();
+  const left = patch(0), right = patch(72);
+  detector.inspect(0, left);
+  assert.equal(detector.inspect(40, dark), 'hold');
+  assert.equal(detector.inspect(100, right), 'hold'); // Different region.
+  assert.equal(detector.inspect(150, dark), 'filter');
+  assert.equal(detector.inspect(350, dark), 'filter');
+  assert.equal(detector.inspect(440, dark), 'show');
+  assert.equal(detector.inspect(600, right), 'hold'); // Previous reversal expired.
+});
+
+test('Fast mode filters dense high-contrast stripes on the first frame', () => {
+  const stripes = frame(0);
+  for (let i = 4; i < stripes.length; i += 8) stripes.fill(255, i, i + 3);
+  assert.equal(new FastDetector().inspect(0, stripes), 'filter');
+});
 test('known strobe interval is mapped before playback',()=>{const d=new Detector();for(let i=0;i<360;i++){const t=i/60;d.push(t,frame(t>=2 && t<4 ? (Math.floor(t*16)%2?255:0):100));}assert.equal(d.intervals.length,1);assert.ok(d.intervals[0].start<=2);assert.ok(d.intervals[0].end>=4);assert.ok(!covered(0,d.intervals));assert.ok(covered(3,d.intervals));assert.ok(!covered(5.9,d.intervals));});
 test('steady content does not fabricate hazard intervals',()=>{const d=new Detector();for(let i=0;i<180;i++)d.push(i/60,frame(100));assert.deepEqual(d.intervals,[]);});
 test('timestamp lookup handles seeks and speed independently',()=>{const intervals=[{start:2,end:4}];for(const [t,want] of [[3,true],[1,false],[4,true],[7,false],[2,true]])assert.equal(covered(t,intervals),want);});

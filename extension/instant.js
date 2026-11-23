@@ -3,9 +3,9 @@
 (async () => {
   const settings = await chrome.storage.local.get({instantPreview: true, enabled: true, conservative: false, instantFilter: 'blur'});
   if (!settings.instantPreview) return;
-  const { Detector } = VisionGuardDetector;
+  const { FastDetector } = VisionGuardDetector;
   let video, key, source, frameId, resize, events, sample, sampleContext;
-  let detector, previousTime, holdUntil, checked, shown, coveredAt, history, blocks;
+  let detector, previousTime, startupUntil, checked, shown, coveredAt, history, blocks;
   let previousPipSetting = false;
   let hasInspectedPicture = false;
   let triggerHold = false;
@@ -27,9 +27,9 @@
   function freshHistory() {
     hasInspectedPicture = false;
     triggerHold = false;
-    detector = new Detector();
+    detector = new FastDetector();
     previousTime = -1;
-    holdUntil = performance.now() + 100;
+    startupUntil = performance.now() + 100;
     coveredAt = null;
     conceal();
   }
@@ -94,26 +94,26 @@
       if (time <= previousTime || time - previousTime > Math.max(.45, .45 * video.playbackRate)) freshHistory();
       frame = new VideoFrame(video);
       sampleContext.drawImage(frame, 0, 0, 96, 54);
-      detector.push(time, sampleContext.getImageData(0, 0, 96, 54).data);
+      const decision = detector.inspect(now, sampleContext.getImageData(0, 0, 96, 54).data);
       checked++;
       previousTime = time;
-      if (detector.candidateTransition || (detector.intervals.at(-1)?.end ?? -1) >= time) {
-        triggerHold = true;
-        holdUntil = Math.max(holdUntil, now + 750);
-      }
+      triggerHold = decision === 'filter';
       state = 'instant';
-      if (now < holdUntil) {
+      if (decision !== 'show' || now < startupUntil) {
         if (triggerHold && hasInspectedPicture && settings.instantFilter === 'blur') {
           // Keep the last accepted pixels. Never draw the triggering frame into the
           // visible canvas: blurring a changing field of color still allows flashes.
           picture.setAttribute('data-vg-trigger-blur', '');
           picture.hidden = false;
           message = 'Trigger detected · previous picture frozen, blurred and dimmed.';
+        } else if (!triggerHold && hasInspectedPicture) {
+          picture.removeAttribute('data-vg-trigger-blur');
+          message = 'Checking a scene change.';
         } else {
           conceal();
           message = triggerHold ? 'Trigger detected · picture covered.' : 'Checking the first frames.';
         }
-        if (!triggerHold) return queueFrame();
+        if (!triggerHold) { coveredAt = null; return queueFrame(); }
         if (coveredAt === null) {
           blocks++;
           coveredAt = {start:time, end:time};
@@ -122,7 +122,6 @@
         }
         coveredAt.end = time;
       } else {
-        triggerHold = false;
         coveredAt = null;
         const scale = Math.min(1, 1280/frame.displayWidth, 720/frame.displayHeight);
         const width = Math.max(1,Math.round(frame.displayWidth*scale));

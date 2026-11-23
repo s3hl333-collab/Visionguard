@@ -30,7 +30,7 @@ function bundledFFmpeg() {
   return path.join(folder,binary);
 }
 
-async function generateFixture(page, folder, {colorInterval = false, seconds = duration, flashStart = 15} = {}) {
+async function generateFixture(page, folder, {colorInterval = false, ordinaryFootage = false, seconds = duration, flashStart = 15} = {}) {
   const stills = await page.evaluate(() => {
     const canvas = document.createElement('canvas');
     canvas.width = 96; canvas.height = 54;
@@ -41,8 +41,23 @@ async function generateFixture(page, folder, {colorInterval = false, seconds = d
     });
   });
   const jpeg = stills.map(still=>Buffer.from(still,'base64'));
+  const ordinary = ordinaryFootage ? await page.evaluate(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 96; canvas.height = 54;
+    const ctx = canvas.getContext('2d');
+    return Array.from({length:144}, (_, index) => {
+      // Three shots, each two seconds long, with a moving foreground subject.
+      ctx.fillStyle = ['#416857', '#bba391', '#465978'][Math.floor(index / 48)];
+      ctx.fillRect(0, 0, 96, 54);
+      ctx.fillStyle = '#ded3c5';
+      ctx.fillRect((index * 2) % 120 - 24, 10, 24, 28);
+      return canvas.toDataURL('image/jpeg').split(',')[1];
+    });
+  }) : [];
+  const shots = ordinary.map(still=>Buffer.from(still,'base64'));
   const frames = Array.from({length: seconds * rate}, (_, frame) => {
     const t = frame / rate;
+    if (ordinaryFootage && t >= 4 && t < 10) return shots[frame - 4 * rate];
     if (colorInterval && t >= 22 && t < 24) return jpeg[3 + Math.floor(frame / 2) % 2];
     return t >= flashStart && t < flashStart + 2 ? jpeg[1 + Math.floor(frame / 2) % 2] : jpeg[0];
   });

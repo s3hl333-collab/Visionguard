@@ -19,7 +19,7 @@ const os = require('node:os');
     const control = await context.newPage();
     await control.goto('chrome-extension://'+await item.getAttribute('id')+'/local.html');
     const temporary = fs.mkdtempSync(path.join(os.tmpdir(),'vg-before-display-'));
-    const bytes = await generateFixture(control, temporary, {colorInterval:true});
+    const bytes = await generateFixture(control, temporary, {colorInterval:true, ordinaryFootage:true});
     // Delete only the known, generated fixture as soon as its bytes are in memory.
     fs.unlinkSync(path.join(temporary,'fixture.webm'));
     fs.rmdirSync(temporary);
@@ -62,6 +62,31 @@ const os = require('node:os');
       await page.waitForFunction(() => document.querySelector('.vg-inspected-picture')?.hidden === false);
       assert.equal(await page.locator('video').evaluate(v => getComputedStyle(v).filter), 'brightness(0)');
     }
+    const ordinary = await page.evaluate(async () => {
+      const video = document.querySelector('video');
+      const picture = document.querySelector('.vg-inspected-picture');
+      video.currentTime = 3.5;
+      await new Promise(resolve => video.addEventListener('seeked', resolve, {once:true}));
+      let samples = 0, blurred = 0, hidden = 0;
+      const seen = new Set();
+      await new Promise(resolve => {
+        function poll() {
+          if (video.currentTime >= 4 && video.currentTime < 10) {
+            samples++;
+            if (picture.hidden) hidden++;
+            if (picture.hasAttribute('data-vg-trigger-blur')) blurred++;
+            const pixels = picture.getContext('2d').getImageData(0, 24, 96, 1).data;
+            seen.add(pixels.toString());
+          }
+          if (video.currentTime >= 10) resolve(); else requestAnimationFrame(poll);
+        }
+        poll();
+      });
+      return {samples, blurred, hidden, distinctRows:seen.size};
+    });
+    console.log('Ordinary cuts and motion', JSON.stringify(ordinary));
+    assert.ok(ordinary.samples > 50 && ordinary.distinctRows > 48, JSON.stringify(ordinary));
+    assert.deepEqual([ordinary.blurred, ordinary.hidden], [0,0]);
     // Watch actual canvas pixel values in the encoded strobe, including its first transition.
     async function checkInterval(start) {
       return page.evaluate(async start => {

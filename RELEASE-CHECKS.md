@@ -1,6 +1,12 @@
-# Vision Guard 0.3.2 verification
+# Vision Guard 0.3.3 verification
 
-## November 23, 2026 audit
+## Fast-mode false positives
+
+The six-second ordinary-motion fixture has three separate shots and a moving subject. In headless Chromium, 0.3.2 blurred 92 of 357 display samples. Version 0.3.3 blurred zero of 360 samples and continued drawing the moving subject. In a separate comparison on the first 12 seconds of one public YouTube clip, the old and new rules saw the same 145 decoded samples. The old rules selected blur on 116. The new rules selected blur on zero and held the previous clear picture on ten. These examples do not estimate a general false-positive rate.
+
+The existing two-second brightness and color triggers were also tested. The clear picture stayed frozen during confirmation, blur appeared within 100 ms of each onset in the comparison run, and the sampled canvas never displayed the changing source colors. Unit tests cover one-way fades, changes in different regions, localized reversals, quiet recovery and dense stripes. Real video can contain patterns outside these tests.
+
+## Earlier 0.3.2 audit
 
 - In headless Chromium, Fast mode first displayed an inspected frame after 86 ms on the 48-second fixture. Blur first appeared 13 ms after brightness-flash onset and 9 ms after color-change onset. All 238 samples during those intervals retained the previous picture with blur and dimming. Playback continued and the regular picture returned after each interval. On one live YouTube video the first inspected frame appeared after 3.77 seconds. These timings describe individual runs.
 - Two simulated back/forward-cache restores reattached the inspection canvas. The test then checked trigger handling on the restored player. Real browser cache eligibility varies by page.

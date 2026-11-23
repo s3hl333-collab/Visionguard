@@ -120,6 +120,81 @@ class Detector {
   }
 }
 
+// Fast playback distinguishes a cut from flicker by checking whether the same
+// parts of the picture change direction again within the observation window.
+const TILE_WIDTH = 12;
+const TILE_HEIGHT = 9;
+const TILE_AREA = TILE_WIDTH * TILE_HEIGHT;
+const TILE_COUNT = PIXELS / TILE_AREA;
+const MIN_CHANGED_TILES = Math.ceil(TILE_COUNT * 0.05);
+const CONFIRM_MS = 220;
+const RELEASE_MS = 280;
+
+class FastDetector {
+  constructor() {
+    this.previous = new Float64Array(TILE_COUNT * 4);
+    this.direction = new Float64Array(TILE_COUNT * 3);
+    this.changedAt = new Float64Array(TILE_COUNT).fill(-Infinity);
+    this.hasPrevious = false;
+    this.lastChange = -Infinity;
+    this.holdUntil = -Infinity;
+    this.filterUntil = -Infinity;
+  }
+
+  inspect(now, rgba) {
+    let changed = 0, reversed = 0, edges = 0, tile = 0;
+    for (let top = 0; top < HEIGHT; top += TILE_HEIGHT) {
+      for (let left = 0; left < WIDTH; left += TILE_WIDTH, tile++) {
+        let red = 0, green = 0, blue = 0, light = 0;
+        for (let y = top; y < top + TILE_HEIGHT; y++) {
+          let lastLight;
+          let offset = (y * WIDTH + left) * 4;
+          for (let x = 0; x < TILE_WIDTH; x++, offset += 4) {
+            const r = rgba[offset], g = rgba[offset + 1], b = rgba[offset + 2];
+            const luminance = RED_LUMA[r] + GREEN_LUMA[g] + BLUE_LUMA[b];
+            if (x && Math.abs(luminance - lastLight) > 0.5) edges++;
+            lastLight = luminance;
+            red += r; green += g; blue += b; light += luminance;
+          }
+        }
+        const i = tile * 4, j = tile * 3;
+        const dr = red - this.previous[i];
+        const dg = green - this.previous[i + 1];
+        const db = blue - this.previous[i + 2];
+        const brightness = Math.abs(light - this.previous[i + 3]);
+        const chroma = Math.max(dr, dg, db) - Math.min(dr, dg, db);
+        if (this.hasPrevious &&
+            (brightness >= 0.1 * TILE_AREA || chroma >= CHANNEL_STEP * TILE_AREA)) {
+          changed++;
+          const dot = dr * this.direction[j] + dg * this.direction[j + 1] + db * this.direction[j + 2];
+          if (now - this.changedAt[tile] <= CONFIRM_MS && dot < 0) reversed++;
+          this.direction[j] = dr;
+          this.direction[j + 1] = dg;
+          this.direction[j + 2] = db;
+          this.changedAt[tile] = now;
+        }
+        this.previous[i] = red;
+        this.previous[i + 1] = green;
+        this.previous[i + 2] = blue;
+        this.previous[i + 3] = light;
+      }
+    }
+    this.hasPrevious = true;
+    if (changed >= MIN_CHANGED_TILES) {
+      // Keep the current clean picture on a possible onset. Sustained motion
+      // in one direction cannot continually extend this initial hold.
+      if (now - this.lastChange > CONFIRM_MS) this.holdUntil = now + CONFIRM_MS;
+      this.lastChange = now;
+    }
+    if (reversed >= MIN_CHANGED_TILES || edges > HEIGHT * (WIDTH - WIDTH / TILE_WIDTH) * 0.35) {
+      this.filterUntil = now + RELEASE_MS;
+    }
+    if (now < this.filterUntil) return 'filter';
+    if (now <= this.holdUntil) return 'hold';
+    return 'show';
+  }
+}
+
 function covered(time, intervals) {
   if (!Number.isFinite(time)) return false;
   let low = 0;
@@ -134,5 +209,5 @@ function covered(time, intervals) {
   return false;
 }
 
-globalThis.VisionGuardDetector = { Detector, covered };
+globalThis.VisionGuardDetector = { Detector, FastDetector, covered };
 })();

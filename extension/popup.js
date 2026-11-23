@@ -10,7 +10,7 @@ function displayStrategy(strategy) {
   byId('scan-actions').hidden = strategy === 'instant';
   byId('timeline-title').textContent = strategy === 'instant' ? 'Recently covered moments' : 'Detected intervals';
   byId('strategy-info').textContent = {
-    instant:'Checks each frame before drawing it. Sudden changes can briefly cover ordinary cuts. Playback keeps its original audio and speed.',
+    instant:'Checks each frame before drawing it. An isolated cut may briefly hold the clear picture. Rapid reversals and dense stripes activate the filter. Playback keeps its original audio and speed.',
     segments:'Scans a short section, plays it, then covers and mutes the picture while preparing the next section.',
     whole:'Scans the whole video first. Replay then runs without section breaks.'
   }[strategy];

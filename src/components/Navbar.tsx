@@ -48,7 +48,7 @@ export function Navbar() {
                 VISION GUARD
               </span>
               <span className="hidden sm:inline-block text-[10px] font-mono px-1.5 py-0.5 rounded border border-[#262626] text-[#a3a3a3] bg-[#141414]">
-                v0.3.2 · preview
+                v0.3.3 · preview
               </span>
             </div>
           </Link>
