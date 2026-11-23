@@ -15,7 +15,7 @@ export function InteractiveDemo() {
       <label className="block space-y-3">Example position: {time.toFixed(1)} seconds
         <input className="block w-full min-h-11" type="range" min="0" max="25" step="0.1" value={time} onChange={event => setTime(Number(event.target.value))} />
       </label>
-      <p className="text-[#b8b8b8]">Accessible YouTube videos receive a covered pre-scan before replay. Unknown gaps stay opaque. This illustration is not an analysis result; no detection result establishes safety.</p>
+      <p className="text-[#b8b8b8]">This example illustrates the optional pre-scan modes. Unknown gaps stay opaque. This illustration is not an analysis result; no detection result establishes safety.</p>
     </div>
   </section>;
 }

@@ -19,6 +19,7 @@ const project = process.env.VISION_GUARD_PROJECT || process.cwd();
     const id = await manager.locator('extensions-item').first().getAttribute('id');
     const control = await context.newPage();
     await control.goto('chrome-extension://' + id + '/local.html');
+    await control.evaluate(() => chrome.storage.local.set({instantPreview:false, scanWholeVideo:true}));
     const bytes = await control.evaluate(async () => {
       const canvas = document.createElement('canvas'); canvas.width = 96; canvas.height = 54;
       const ctx = canvas.getContext('2d');

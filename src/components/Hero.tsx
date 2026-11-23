@@ -45,7 +45,7 @@ export function Hero() {
 
           {/* Supporting Text */}
           <p className="text-base sm:text-lg md:text-xl text-[#a3a3a3] font-normal leading-relaxed max-w-2xl mx-auto">
-            Vision Guard first scans accessible YouTube videos with the picture covered and audio muted, then replays them with detected intervals obscured. Allow roughly the video duration for this experimental pre-scan. Unreadable content stays covered.
+            Vision Guard checks YouTube frames as you watch, keeping detected sudden changes covered while audio continues. Choose a pre-scan in the popup if you want hazard timestamps before watching.
           </p>
 
           {/* CTAs */}

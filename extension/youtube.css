@@ -1,5 +1,5 @@
 /* Default covered until the isolated content script has loaded settings and coverage. */
-video:not([data-vg-visual="visible"]):not([data-vg-visual="blur"]) {
+html:not([data-vg-instant-bypass]) video:not([data-vg-visual="visible"]):not([data-vg-visual="blur"]) {
   filter: brightness(0) !important;
   background: #000 !important;
   transition: none !important;
@@ -7,6 +7,20 @@ video:not([data-vg-visual="visible"]):not([data-vg-visual="blur"]) {
 }
 video[data-vg-visual="blur"] {
   filter: blur(40px) brightness(.15) !important;
+  transition: none !important;
+  animation: none !important;
+}
+html[data-vg-instant-on] :is(#cinematics, #cinematics-container) { display: none !important; }
+.vg-inspected-picture {
+  position: absolute !important;
+  pointer-events: none !important;
+  background: black;
+  box-sizing: border-box;
+}
+.vg-inspected-picture[hidden] { display: none !important; }
+.vg-inspected-picture[data-vg-trigger-blur] {
+  filter: blur(28px) brightness(.35) !important;
+  clip-path: inset(0);
   transition: none !important;
   animation: none !important;
 }

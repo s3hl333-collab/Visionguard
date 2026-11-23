@@ -11,11 +11,11 @@ interface FAQItem {
 const FAQS: FAQItem[] = [
   {
     question: "Does Vision Guard pause or stop my YouTube videos?",
-    answer: "Before viewing, an initial pass plays with visuals covered and audio muted while the extension analyzes accessible frames. It then rewinds and restores your audio and speed settings for replay. During replay, timestamp-based covering does not intentionally pause playback. Expect an initial wait approximately equal to the video duration. Scans interrupted by ads or inaccessible frames may need restarting.",
+    answer: "Fast mode inspects each picture before displaying it and leaves audio and playback speed alone. Section pre-scan covers and mutes the video between sections. Whole-video pre-scan waits up front, then replays the analyzed video.",
   },
   {
     question: "How does Vision Guard detect dangerous flashing sequences?",
-    answer: "For YouTube, browser video-frame callbacks and Canvas analyze the existing player during a covered pass. Local files use sampled seeking. Experimental luminance, red-intensity and edge heuristics identify potential intervals. There is no certified standards compliance; brief events can be missed. Access restrictions are never bypassed.",
+    answer: "The default YouTube mode checks brightness, color changes and high-contrast edges on an inspected copy of each displayed frame. The optional pre-scan modes map potential hazard intervals for replay. Local file analysis uses sampled seeking. These experimental checks can miss hazards.",
   },
   {
     question: "Does Vision Guard upload my viewing history or video frames to any server?",
@@ -23,7 +23,7 @@ const FAQS: FAQItem[] = [
   },
   {
     question: "Can I customize the visual filter appearance?",
-    answer: "Choose an opaque cover or experimental blur and dimming for detected intervals during replay. Scanning, unknown gaps and failures always use an opaque cover. Blur can preserve flashing. Sensitivity adjustment and monochrome mode are not implemented.",
+    answer: "Fast mode automatically freezes, blurs and dims the previous inspected picture during detected changes. You can select an opaque cover instead. Pre-scanned replay has a separate filter setting. Scanning, unknown gaps and failures always use an opaque cover. Blur can preserve flashing. Sensitivity adjustment and monochrome mode are not implemented.",
   },
   {
     question: "What flash frequencies are most hazardous for photosensitive epilepsy?",

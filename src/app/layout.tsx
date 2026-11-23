@@ -18,9 +18,9 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Vision Guard — Experimental video pre-scan",
+  title: "Vision Guard — Experimental frame inspection",
   description:
-    "Experimental covered pre-scan for accessible YouTube videos, followed by timestamp-based visual covering during replay. Initial scanning wait required; not medically validated.",
+    "Frame inspection during YouTube playback, with optional section or whole-video pre-scans. Experimental assistive software.",
   keywords: [
     "photosensitive epilepsy",
     "experimental video analysis",
@@ -33,7 +33,7 @@ export const metadata: Metadata = {
   openGraph: {
     title: "Vision Guard — Watch freely. Stay aware.",
     description:
-      "Scan accessible videos in a covered first pass, then replay with detected intervals obscured. Experimental assistive tool; no seizure-prevention guarantee.",
+      "Inspect accessible video frames while watching or use advance scanning for replay. Experimental assistive tool; no seizure-prevention guarantee.",
     type: "website",
   },
 };

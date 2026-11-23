@@ -26,7 +26,7 @@ export function CTASection() {
               Experience video without apprehension.
             </h2>
             <p className="text-base sm:text-lg text-[#a3a3a3] max-w-xl mx-auto leading-relaxed">
-              Scan accessible YouTube videos in a covered, muted first pass, then watch with timestamp-based visual protection. Keep the tab visible during the initial scan. Restricted videos and live streams may not support analysis.
+              Start watching with frame inspection enabled. You can also pre-scan 12-second sections or the whole video for timestamp-based replay.
             </p>
           </div>
 
@@ -50,7 +50,7 @@ export function CTASection() {
             </a>
           </div>
 
-          <p className="text-sm text-[#a3a3a3]">Version 0.2.0 · Experimental developer-mode installation. Extract the ZIP, open chrome://extensions, enable Developer Mode, choose Load unpacked, and select the extracted folder. When updating, replace the old files, click Reload on the extension card, then reload your YouTube tab. This is not a Chrome Web Store installation.</p>
+          <p className="text-sm text-[#a3a3a3]">Version 0.3.1 · Experimental developer-mode installation. Extract the ZIP, open chrome://extensions, enable Developer Mode, choose Load unpacked, and select the extracted folder. When updating, replace the old files, click Reload on the extension card, then reload your YouTube tab. This is not a Chrome Web Store installation.</p>
           <p className="text-sm text-amber-200">Assistive tool, not a medically validated seizure-prevention device. Sampled analysis can miss hazards. Unanalyzed content is not known to be safe. Blur may leave flashes visible.</p>
           {/* Browser Support Pills */}
           <div className="pt-6 border-t border-[#1f1f1f] flex flex-wrap items-center justify-center gap-3 text-xs text-[#737373] font-mono">

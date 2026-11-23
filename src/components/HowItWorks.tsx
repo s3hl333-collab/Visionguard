@@ -14,7 +14,7 @@ export function HowItWorks() {
       description:
         "Vision Guard examines accessible video frames for potentially hazardous flashing patterns.",
       details:
-        "YouTube is first played with its picture covered and audio muted while browser frame callbacks feed Canvas analysis. After this initial wait it rewinds for protected replay. Local files use sampled seeking. Both approaches are experimental and can miss events.",
+        "Fast mode screens each presented picture before drawing it. For timestamp-based replay, choose section pre-scan or whole-video pre-scan. Local files use sampled seeking.",
       badge: "Local Canvas sampling",
       specs: [
         { label: "Sample Resolution", val: "Downscaled 96×54; detail can be lost" },

@@ -1,47 +1,79 @@
-const defaults = { enabled: true, conservative: false, mode: 'overlay', autoAnalyze: true };
-const status = document.getElementById('status');
+const defaults = { enabled:true, conservative:false, mode:'overlay', instantFilter:'blur', autoAnalyze:true, instantPreview:true, scanWholeVideo:false };
+const byId = id => document.getElementById(id);
+const status = byId('status');
 let tabId;
-let lastStatus = '';
+let connected = false;
+
+function displayStrategy(strategy) {
+  byId('fast-filter-control').hidden = strategy !== 'instant';
+  byId('prescan-controls').hidden = strategy === 'instant';
+  byId('scan-actions').hidden = strategy === 'instant';
+  byId('timeline-title').textContent = strategy === 'instant' ? 'Recently covered moments' : 'Detected intervals';
+  byId('strategy-info').textContent = {
+    instant:'Checks each frame before drawing it. Sudden changes can briefly cover ordinary cuts. Playback keeps its original audio and speed.',
+    segments:'Scans a short section, plays it, then covers and mutes the picture while preparing the next section.',
+    whole:'Scans the whole video first. Replay then runs without section breaks.'
+  }[strategy];
+}
+
 try {
-  const settings = await chrome.storage.local.get(defaults);
-  for (const key of Object.keys(defaults)) {
-    const element = document.getElementById(key);
-    if (key === 'mode') element.value = settings[key] === 'blur' ? 'blur' : 'overlay';
-    else element.checked = typeof settings[key] === 'boolean' ? settings[key] : defaults[key];
+  const saved = await chrome.storage.local.get(defaults);
+  const [tab] = await chrome.tabs.query({active:true, currentWindow:true});
+  tabId = tab?.id;
+  const strategy = byId('strategy');
+  strategy.value = saved.instantPreview !== false ? 'instant' : saved.scanWholeVideo ? 'whole' : 'segments';
+  displayStrategy(strategy.value);
+  strategy.addEventListener('change', async () => {
+    try {
+      await chrome.storage.local.set({instantPreview:strategy.value === 'instant',scanWholeVideo:strategy.value === 'whole'});
+      displayStrategy(strategy.value);
+      if (connected) await chrome.tabs.reload(tabId);
+      status.textContent = 'Mode saved. The new mode starts when the YouTube tab loads.';
+    } catch { status.textContent = 'Could not apply this mode. Reload the video tab.'; }
+  });
+  for (const name of ['enabled','conservative','mode','autoAnalyze','instantFilter']) {
+    const element = byId(name);
+    if (name === 'mode') element.value = saved.mode === 'blur' ? 'blur' : 'overlay';
+    else if (name === 'instantFilter') element.value = saved.instantFilter === 'overlay' ? 'overlay' : 'blur';
+    else element.checked = saved[name] === true;
     element.addEventListener('change', async () => {
-      try { await chrome.storage.local.set({ [key]: key === 'mode' ? element.value : element.checked }); }
-      catch { status.textContent = 'Settings could not be saved. Please reopen the extension.'; }
+      try { await chrome.storage.local.set({[name]:element.tagName === 'SELECT' ? element.value : element.checked}); }
+      catch { status.textContent = 'Could not save this setting.'; }
     });
   }
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  tabId = tab?.id;
-} catch { status.textContent = 'Could not read settings or active tab.'; }
+} catch { status.textContent = 'Could not open extension settings.'; }
+
 async function update() {
   try {
-    const result = await chrome.tabs.sendMessage(tabId, { type: 'VG_STATUS' });
-    const text = result.state === 'analyzing'
-      ? 'Analyzing ' + Math.floor(result.progress * 100) + '% — picture covered and audio muted.'
-      : result.message;
-    if (text !== lastStatus) { status.textContent = text; lastStatus = text; }
-    document.getElementById('progress').value = result.progress;
-    document.getElementById('coverage').textContent = 'Observed timeline coverage: ' + Math.floor(result.coverage * 100) + '% · ' + result.intervals.length + ' potential hazard intervals · ' + result.gaps.length + ' covered gaps. Not a safety rating.';
-    document.getElementById('timeline').textContent = result.intervals.length
-      ? result.intervals.map(interval => interval.start.toFixed(2) + '–' + interval.end.toFixed(2) + 's').join('\n')
-      : 'No hazards detected yet. This does not establish safety.';
-    document.getElementById('scan').disabled = ['analyzing', 'preparing', 'rewinding'].includes(result.state);
-    document.getElementById('stop').disabled = !['analyzing', 'preparing', 'rewinding'].includes(result.state);
+    const result = await chrome.tabs.sendMessage(tabId, {type:'VG_STATUS'});
+    connected = true;
+    if (status.textContent !== result.message) status.textContent = result.message;
+    const instant = result.strategy === 'instant';
+    byId('progress').hidden = instant;
+    if (!instant) byId('progress').value = result.segmentProgress ?? result.progress ?? 0;
+    byId('coverage').textContent = instant
+      ? result.checked + ' frames inspected during playback · ' + result.shown + ' displayed'
+      : Math.floor(result.coverage * 100) + '% of video analyzed · ' + result.intervals.length + ' potential hazard intervals';
+    byId('timeline').textContent = result.intervals.length
+      ? result.intervals.map(i => i.start.toFixed(2)+'–'+i.end.toFixed(2)+' s').join('\n')
+      : instant ? 'No covered moments recorded in this session.' : 'No hazard intervals recorded.';
+    const scanning = ['analyzing','preparing','rewinding'].includes(result.state);
+    byId('scan').disabled = scanning || !result.video;
+    byId('stop').disabled = !scanning;
   } catch {
-    status.textContent = 'Open a YouTube video and reload its tab after updating the extension, or analyze a local video.';
-    document.getElementById('scan').disabled = true;
-    document.getElementById('stop').disabled = true;
+    connected = false;
+    status.textContent = 'Open a YouTube video or reload the tab after updating.';
+    byId('progress').hidden = true;
+    byId('coverage').textContent = '';
+    byId('scan').disabled = byId('stop').disabled = true;
   }
 }
-for (const [id, type] of [['scan', 'VG_SCAN'], ['stop', 'VG_STOP']]) {
-  document.getElementById(id).addEventListener('click', async () => {
-    try { await chrome.tabs.sendMessage(tabId, { type }); await update(); }
-    catch { status.textContent = 'YouTube connection lost. Reload the video tab.'; }
+for (const [id, type] of [['scan','VG_SCAN'],['stop','VG_STOP']]) {
+  byId(id).addEventListener('click', async () => {
+    try { await chrome.tabs.sendMessage(tabId,{type}); await update(); }
+    catch { status.textContent = 'Reload this YouTube tab to reconnect.'; }
   });
 }
 await update();
 const timer = setInterval(update, 1000);
-window.addEventListener('pagehide', () => clearInterval(timer), { once: true });
+window.addEventListener('pagehide', () => clearInterval(timer), {once:true});

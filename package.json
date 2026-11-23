@@ -1,6 +1,6 @@
 {
   "name": "vision-guard",
-  "version": "0.2.0",
+  "version": "0.3.1",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -9,7 +9,8 @@
     "lint": "eslint",
     "build:extension": "node build-extension.mjs",
     "test:detector": "node --test extension/detector.test.mjs",
-    "test:youtube": "node release-tests/youtube-prescan.cjs"
+    "test:youtube": "node release-tests/youtube-prescan.cjs",
+    "test:fast": "node release-tests/instant-playback.cjs && node release-tests/fast-prescan.cjs"
   },
   "dependencies": {
     "framer-motion": "^14.14.0",

@@ -1,21 +1,21 @@
-# Vision Guard 0.2.0
+# Vision Guard 0.3.1
 
 Experimental Chrome extension and Next.js landing page. This is an assistive prototype, not a medically validated seizure-prevention device.
 
 ## YouTube workflow
 
-1. Open a YouTube watch page with protection and automatic pre-scan enabled (defaults).
-2. The extension keeps the video picture black, mutes audio, returns to the beginning, and analyzes frames delivered by the existing player at normal speed. Leave the tab visible. Expect roughly the video duration plus buffering time.
-3. After reaching the end it rewinds, restores the original mute and speed settings, and starts replay. If autoplay is blocked, press Play.
+1. Open a YouTube watch page with Protection enabled. **Fast · inspect as I watch** is the default.
+2. Fast mode keeps the source picture opaque and displays only inspected snapshots, at up to 1280×720. On a detected change, Fast mode freezes, blurs and dims the last inspected picture. Original audio and playback speed continue. A sudden change can cover an ordinary cut, and the detector can miss hazards.
+3. For a timeline before viewing, choose 12-second section pre-scans or a whole-video pre-scan. Section mode alternates between covered scanning and replay. Whole-video mode puts the wait at the beginning.
 4. During replay, potential hazard intervals receive an opaque cover, or experimental blur if selected. Unknown frame gaps always stay opaque. Audio and playback continue during interval covering.
 
-The popup reports scan state, progress, observed timeline coverage, potential hazard intervals and unknown gaps. Stop scan retains covering. Scan from beginning retries failed or interrupted scans. Disable protection explicitly to watch without this tool's covering. Continuous cover remains available.
+The popup shows inspected and displayed frame counts in fast mode, and timeline coverage in pre-scan modes. Changing modes reloads the active YouTube tab.
 
-This is a covered first pass, not simultaneous access to unseen future YouTube frames. It uses the normal player and Canvas APIs; it does not extract stream URLs, download restricted streams, disable browser security, or bypass CORS/DRM. Pixel access is tested on each scan. Live streams and encrypted/inaccessible video cannot be analyzed. Ads and source changes invalidate the map; restart afterward. Backgrounding the tab stops the scan with a covered failure state.
+All modes use normal browser media APIs. Pixel-access restrictions keep the picture covered. Coverage is experimental.
 
 ## Install / update
 
-Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.2.0 in the popup.
+Download the ZIP from the landing page and extract it. At chrome://extensions, enable Developer Mode and Load unpacked, selecting the folder containing manifest.json. This is not a Web Store installation. For an existing installation replace the extracted files, click Reload on the extension card, then reload your YouTube tab. Check version 0.3.1 in the popup.
 
 ## Local files
 
@@ -34,6 +34,7 @@ The popup also opens a local-file analyzer. It samples at 60 seeks per second of
 - node release-tests/check.cjs
 - node release-tests/extension.cjs
 - npm run test:youtube
+- npm run test:fast
 
 The YouTube test runs an encoded flashing fixture only in headless Chromium, verifies detection, covering, replay, audio-state restoration, ad interruption and blocked canvas access, then tests a short real YouTube video. Network availability, YouTube changes and access challenges can affect that last test. Do not view hazardous test fixtures directly.
 
