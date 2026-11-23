@@ -76,8 +76,9 @@
     const anchor = parent?.getBoundingClientRect();
     const left = bounds.left - (anchor?.left || 0) + (parent?.scrollLeft || 0) - (parent?.clientLeft || 0);
     const top = bounds.top - (anchor?.top || 0) + (parent?.scrollTop || 0) - (parent?.clientTop || 0);
+    const style = getComputedStyle(video);
     Object.assign(picture.style, {left:left+'px', top:top+'px', width:bounds.width+'px', height:bounds.height+'px',
-      objectFit:getComputedStyle(video).objectFit, objectPosition:getComputedStyle(video).objectPosition});
+      objectFit:style.objectFit, objectPosition:style.objectPosition, zIndex:style.zIndex});
   }
   function unavailable(reason) {
     failure = reason;

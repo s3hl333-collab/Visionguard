@@ -166,8 +166,20 @@ const os = require('node:os');
     await page.waitForFunction(() => document.querySelector('video').currentTime > .4);
     assert.equal((await status()).state,'unavailable','Unreadable regional playback must stay covered');
     await page.goto('https://www.youtube.com/watch?v=vg-test');
-    await page.locator('video').evaluate(v => {v.currentTime=42; return v.play();});
-    await page.waitForFunction(() => document.querySelector('video').currentTime > 44);
+    await page.locator('video').evaluate(v => {v.currentTime=3.5; return v.play();});
+    await page.waitForFunction(() => document.querySelector('video').currentTime > 10);
+    assert.equal((await status()).blocks,0,'Native playback dimmed an ordinary cut or moving subject');
+    await page.locator('video').evaluate(v => {
+      v.style.position='relative';
+      v.style.zIndex='2';
+      v.currentTime=42;
+    });
+    await page.waitForFunction(() => {
+      const canvas = document.querySelector('.vg-regional-mask');
+      return !canvas.hidden && document.querySelector('video').currentTime > 43;
+    });
+    const onset = (await status()).intervals.at(-1).start - 43;
+    assert.ok(onset >= 0 && onset < .42,'Local strobe dimming began at ' + onset);
     const mask = await page.evaluate(() => {
       const canvas = document.querySelector('.vg-regional-mask'), v = document.querySelector('video');
       const ctx = canvas.getContext('2d');
@@ -175,15 +187,49 @@ const os = require('node:os');
         maskVisible:!canvas.hidden, background:getComputedStyle(canvas).backgroundColor,
         filter:getComputedStyle(v).filter,paused:v.paused,rate:v.playbackRate};
     });
-    assert.ok(mask.left >= 220 && mask.left < 255 && mask.right === 0, JSON.stringify(mask));
+    assert.ok(mask.left >= 240 && mask.left < 255 && mask.right === 0, JSON.stringify(mask));
     assert.deepEqual([mask.maskVisible,mask.background,mask.filter,mask.paused,mask.rate],[true,'rgba(0, 0, 0, 0)','none',false,1]);
+    // Stop on an actual bright source frame. Read a screenshot of the composed
+    // player so an overlay hidden beneath a positive-z-index video fails here.
+    await page.evaluate(async () => {
+      const v = document.querySelector('video'), probe = document.createElement('canvas');
+      probe.width=96; probe.height=54;
+      const ctx = probe.getContext('2d',{willReadFrequently:true});
+      await new Promise((resolve,reject) => {
+        function check() {
+          ctx.drawImage(v,0,0,96,54);
+          if (ctx.getImageData(9,9,1,1).data[0] > 230) { v.pause(); resolve(); }
+          else if (v.currentTime > 45) reject(Error('No bright frame sampled'));
+          else v.requestVideoFrameCallback(check);
+        }
+        v.requestVideoFrameCallback(check);
+      });
+    });
+    const screenshot = await page.screenshot({clip:await page.locator('video').boundingBox()});
+    const composed = await control.evaluate(async encoded => {
+      const img = new Image();
+      img.src = 'data:image/png;base64,' + encoded;
+      await img.decode();
+      const c = document.createElement('canvas'); c.width=96; c.height=54;
+      const ctx = c.getContext('2d');
+      ctx.drawImage(img,0,0,96,54);
+      return [9,80].map(x=>ctx.getImageData(x,9,1,1).data[0]);
+    },screenshot.toString('base64'));
+    assert.ok(composed[0] <= 100 && composed[1] >= 98 && composed[1] <= 106,JSON.stringify(composed));
+    await page.locator('video').evaluate(v => v.play());
     await page.waitForFunction(() => document.querySelector('video').currentTime > 45.7);
     assert.equal(await page.locator('.vg-regional-mask').isVisible(),false);
     assert.ok((await status()).blocks > 0);
+    await page.waitForFunction(() => document.querySelector('video').currentTime > 46.7);
+    const narrow = await page.locator('.vg-regional-mask').evaluate(c => {
+      const ctx = c.getContext('2d');
+      return [1,4,12].map(x=>ctx.getImageData(x,9,1,1).data[3]);
+    });
+    assert.ok(narrow[0] >= 240 && narrow[1] >= 240 && narrow[2] === 0,JSON.stringify(narrow));
     await control.evaluate(() => chrome.storage.local.set({conservative:true}));
     await page.waitForFunction(() => getComputedStyle(document.querySelector('video')).filter === 'brightness(0)');
     await control.evaluate(() => chrome.storage.local.set({conservative:false}));
-    console.log('Regional playback', JSON.stringify(mask));
+    console.log('Regional playback', JSON.stringify({mask,onset,composed,narrow}));
     if(process.env.VG_LIVE==='1'){
       await page.goto('https://www.youtube.com/watch?v=jNQXAC9IVRw',{waitUntil:'domcontentloaded'});
       await page.waitForFunction(()=>document.querySelector('#movie_player video')?.readyState>=2,null,{timeout:45000});

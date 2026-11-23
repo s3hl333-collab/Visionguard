@@ -346,11 +346,9 @@ class TileSwings {
     this.threshold = threshold;
     this.extreme = new Float64Array(count).fill(NaN);
     this.direction = new Int8Array(count);
-    this.next = new Uint8Array(count);
-    this.times = new Float64Array(count * 7).fill(-Infinity);
   }
 
-  push(tile, value, now) {
+  changed(tile, value) {
     const extreme = this.extreme[tile];
     const direction = this.direction[tile];
     if (Number.isNaN(extreme) || (value - extreme) * direction > 0) {
@@ -360,21 +358,39 @@ class TileSwings {
     if (Math.abs(value - extreme) < this.threshold) return false;
     this.direction[tile] = Math.sign(value - extreme);
     this.extreme[tile] = value;
+    return true;
+  }
+}
+
+class RegionalTransitions {
+  constructor(count) {
+    this.next = new Uint8Array(count);
+    this.times = new Float64Array(count * 7).fill(-Infinity);
+  }
+
+  record(tile, now) {
     const base = tile * 7;
     const slot = this.next[tile];
     this.times[base + slot] = now;
     this.next[tile] = (slot + 1) % 7;
-    return now - this.times[base + this.next[tile]] < 1000;
+    return now - this.times[base + (slot + 5) % 7] <= 250 ||
+      now - this.times[base + this.next[tile]] < 1000;
   }
 }
 
 class RegionalFlashDetector {
   constructor() {
-    this.cols = WIDTH / 6;
-    this.rows = HEIGHT / 6;
+    this.cols = WIDTH / 3;
+    this.rows = HEIGHT / 3;
     const tiles = this.cols * this.rows;
     this.luma = new TileSwings(tiles, 0.1);
     this.red = new TileSwings(tiles, 0.2);
+    this.lightChanges = new RegionalTransitions(tiles);
+    this.redChanges = new RegionalTransitions(tiles);
+    this.previousU = new Float32Array(tiles);
+    this.previousV = new Float32Array(tiles);
+    this.wasRed = new Uint8Array(tiles);
+    this.initialized = false;
     this.until = new Float64Array(tiles).fill(-Infinity);
     this.opacity = new Uint8Array(tiles);
   }
@@ -382,25 +398,40 @@ class RegionalFlashDetector {
   inspect(now, rgba) {
     let active = 0;
     for (let tile = 0; tile < this.opacity.length; tile++) {
-      const left = (tile % this.cols) * 6;
-      const top = Math.floor(tile / this.cols) * 6;
-      let light = 0, red = 0;
-      for (let y = top; y < top + 6; y++) {
+      const left = (tile % this.cols) * 3;
+      const top = Math.floor(tile / this.cols) * 3;
+      let r = 0, g = 0, b = 0;
+      for (let y = top; y < top + 3; y++) {
         let i = 4 * (y * WIDTH + left);
-        for (let x = 0; x < 6; x++, i += 4) {
-          const r = rgba[i], g = rgba[i + 1], b = rgba[i + 2];
-          light += RED_LUMA[r] + GREEN_LUMA[g] + BLUE_LUMA[b];
-          if (LINEAR[r] > 0 && LINEAR[r] >= 4 * (LINEAR[g] + LINEAR[b])) red += LINEAR[r];
+        for (let x = 0; x < 3; x++, i += 4) {
+          r += LINEAR[rgba[i]]; g += LINEAR[rgba[i + 1]]; b += LINEAR[rgba[i + 2]];
         }
       }
-      // Changes wholly above 0.8 cannot complete a general flash here.
-      const swing = this.luma.push(tile, Math.min(0.9, light / 36), now);
-      const redSwing = this.red.push(tile, red / 36, now);
+      // Chromaticity ratios are invariant to the nine-pixel sum's scale.
+      const x = .4124564*r + .3575761*g + .1804375*b;
+      const y = .2126729*r + .7151522*g + .0721750*b;
+      const z = .0193339*r + .1191920*g + .9503041*b;
+      const denominator = x + 15*y + 3*z;
+      const u = denominator ? 4*x / denominator : 0;
+      const v = denominator ? 9*y / denominator : 0;
+      const saturated = Number(r > 0 && r >= 4*(g+b));
+      const du = u - this.previousU[tile], dv = v - this.previousV[tile];
+      // Black has no defined chromaticity. Its brightness/intensity transitions
+      // are handled independently below.
+      const chromaEdge = this.initialized && saturated !== this.wasRed[tile] &&
+        denominator > 0 && this.previousV[tile] > 0 && du*du + dv*dv > .04;
+      this.previousU[tile] = u;
+      this.previousV[tile] = v;
+      this.wasRed[tile] = saturated;
+      const swing = this.luma.changed(tile, Math.min(.9, y / 9)) && this.lightChanges.record(tile, now);
+      const redEdge = this.red.changed(tile, saturated ? r / 9 : 0);
+      const redSwing = (redEdge || chromaEdge) && this.redChanges.record(tile, now);
       if (swing || redSwing) this.until[tile] = now + 280;
       // A neutral veil compresses both bright and dark phases. Release gently.
-      this.opacity[tile] = Math.round(228 * Math.max(0, Math.min(1, (this.until[tile] + 180 - now) / 180)));
+      this.opacity[tile] = Math.round(244 * Math.max(0, Math.min(1, (this.until[tile] + 180 - now) / 180)));
       if (this.opacity[tile]) active++;
     }
+    this.initialized = true;
     return active;
   }
 }

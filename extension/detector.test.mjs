@@ -26,13 +26,32 @@ test('regional dimming isolates repeated saturated red with little luminance cha
   for (let y=0; y<12; y++) for (let x=0; x<12; x++) {
     pulse.set([220,0,0,255],(y*96+x)*4);
   }
-  for (let i=0;i<7;i++) assert.equal(detector.inspect(i*60,i%2 ? pulse : base),0);
-  assert.equal(detector.inspect(420,pulse),4);
-  assert.equal(detector.opacity[0],228);
-  assert.equal(detector.opacity[3],0);
-  assert.equal(detector.inspect(790,pulse),4);
-  assert.ok(detector.opacity[0] > 0 && detector.opacity[0] < 228);
-  assert.equal(detector.inspect(881,pulse),0);
+  for (let i=0;i<3;i++) assert.equal(detector.inspect(i*60,i%2 ? pulse : base),0);
+  assert.equal(detector.inspect(180,pulse),16);
+  assert.equal(detector.opacity[0],244);
+  assert.equal(detector.opacity[4],0);
+  assert.equal(detector.inspect(550,pulse),16);
+  assert.ok(detector.opacity[0] > 0 && detector.opacity[0] < 244);
+  assert.equal(detector.inspect(641,pulse),0);
+});
+
+test('regional dimming catches a short, narrow light moving between adjacent locations', () => {
+  const detector = new RegionalFlashDetector();
+  const phases = [frame(48),frame(48)];
+  for (let y=0;y<9;y++) for (let x=0;x<6;x++) {
+    phases[Number(x>=3)].fill(245,(y*96+x)*4,(y*96+x)*4+3);
+  }
+  for (let i=0;i<3;i++) assert.equal(detector.inspect(i*80,phases[i%2]),0);
+  assert.equal(detector.inspect(240,phases[1]),6);
+  assert.deepEqual([...detector.opacity.slice(0,3)],[244,244,0]);
+});
+
+test('regional dimming recognizes dark saturated red alternating with near-equal-luminance gray', () => {
+  const detector = new RegionalFlashDetector(), neutral = frame(41), darkRed = neutral.slice();
+  for (let y=0;y<12;y++) for (let x=0;x<12;x++) darkRed.set([90,0,0,255],4*(y*96+x));
+  for (let i=0;i<4;i++) detector.inspect(i*100,i%2 ? darkRed : neutral);
+  assert.equal(detector.opacity[0],244);
+  assert.equal(detector.opacity[4],0);
 });
 
 test('Fast mode confirms a reversal in the same region and releases quiet footage', () => {

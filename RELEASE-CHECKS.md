@@ -1,4 +1,14 @@
-# Vision Guard 0.3.6 native playback and regional dimming
+# Vision Guard 0.3.7 regional flash detection
+
+Native playback now analyzes 32×18 regions within the existing 96×54 sample. Opposing changes can cancel when two nearby lights are averaged together. The smaller regions resolved adjacent three-sample-wide lights in the regression fixture. Each region starts dimming on the third alternating transition if the first and third are at most 250 ms apart, or on seven transitions within one second. The early response is a tuning choice. Some rapid edits can also qualify.
+
+The detector now also checks changes into and out of saturated red using the distance between successive region colors in CIE 1976 UCS. A change between dark red and gray can have nearly constant luminance. The red intensity check remains active for transitions against black, where chromaticity is undefined. The measurements use averaged SDR samples and do not measure a viewer's exposure. [W3C flash guidance and chromaticity equations](https://www.w3.org/WAI/WCAG22/Understanding/three-flashes-or-below-threshold.html)
+
+On identical numeric fixtures alternating every 80 ms, version 0.3.6 missed both the moving bar and the dark-red pulse over 16 samples. Version 0.3.7 dimmed each at 240 ms. The fixed white pulse went from 560 ms to 240 ms. Single flashes, slow alternation and weak flicker remained clear in the controls. Once active, the mask uses 244/255 opacity and fades after the sequence. Early flashes can still be visible before confirmation.
+
+In headless Chrome the encoded local strobe began dimming 250 ms after onset. A screenshot taken on a bright source frame showed gray level 97 in the flashing patch and 102 in the steady neighboring region. The video had a positive stacking index in this test. The mask now matches that index and sits immediately after the video. The six-second ordinary cuts and motion control produced zero regional dimming events. Across two 1080p/60 steady-motion trials, Chrome presented 302 of 302 frames in 5.04 seconds at both 480 and 960 CSS pixels. Main-thread cost was 3.98 and 3.96 ms per frame on this machine.
+
+## Earlier 0.3.6 native playback and regional dimming
 
 The opt-in Native playback mode lets Chrome present the video at its original resolution and speed. It monitors 96×54 samples. Each of 144 regions independently counts alternating changes in brightness and a saturated-red signal. Seven qualifying transitions inside one second activate a translucent neutral mask for that region. The mask reduces the difference between bright and dark frames and fades after the sequence. Separate regions can dim independently. Single cuts and low-amplitude pulses do not accumulate unrelated changes elsewhere in the picture.
 
